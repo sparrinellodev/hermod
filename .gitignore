@@ -1,0 +1,8 @@
+# .gitignore
+/vendor/
+/.phpunit.cache
+/.pest
+/coverage
+composer.lock
+.env
+.phpstan.cache

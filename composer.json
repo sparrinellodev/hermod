@@ -1,0 +1,55 @@
+{
+    "name": "hermod/laravel-wamp",
+    "description": "A modern WAMP client for Laravel 12+",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["wamp", "websocket", "laravel", "rpc", "pubsub", "amphp"],
+    "authors": [
+        {
+            "name": "Salvatore P.",
+            "email": "s.parrinello.dev@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "amphp/websocket-client": "^2.0",
+        "amphp/amp": "^3.0",
+        "spomky-labs/cbor-php": "^3.2"
+    },
+    "suggest": {
+        "ext-msgpack": "Required to use the MessagePack serializer"
+    },
+    "require-dev": {
+        "pestphp/pest": "^3.0",
+        "phpstan/phpstan": "^2.0",
+        "laravel/pint": "^1.0",
+        "orchestra/testbench": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Hermod\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Hermod\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Hermod\\Laravel\\WampServiceProvider"
+            ],
+            "aliases": {
+                "Wamp": "Hermod\\Laravel\\Facades\\Wamp"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
