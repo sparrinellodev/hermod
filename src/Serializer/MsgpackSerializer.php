@@ -30,10 +30,27 @@ class MsgpackSerializer implements SerializerContract
 
     public function deserialize(string $raw): array
     {
-        $decoded = msgpack_unpack($raw);
+        try {
+            set_error_handler(function ($severity, $message) {
+                throw new SerializationException($message);
+            });
+
+            $decoded = msgpack_unpack($raw);
+
+            restore_error_handler();
+        } catch (\Throwable $e) {
+            restore_error_handler();
+
+            throw new SerializationException(
+                "Impossibile deserializzare il messaggio WAMP dal MessagePack: {$e->getMessage()}",
+                previous: $e
+            );
+        }
 
         if (!is_array($decoded)) {
-            throw new SerializationException('Il messaggio WAMP deserializzato non è un array valido.');
+            throw new SerializationException(
+                'Il messaggio WAMP deserializzato non è un array valido.'
+            );
         }
 
         return $decoded;

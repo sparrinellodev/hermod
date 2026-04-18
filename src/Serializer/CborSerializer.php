@@ -5,28 +5,38 @@ namespace Hermod\Serializer;
 use CBOR\CBORObject;
 use CBOR\Decoder;
 use CBOR\ListObject;
+use CBOR\MapItem;
 use CBOR\MapObject;
 use CBOR\NegativeIntegerObject;
 use CBOR\OtherObject\FalseObject;
 use CBOR\OtherObject\NullObject;
 use CBOR\OtherObject\TrueObject;
-use CBOR\Stream\StringStream;
+use CBOR\StringStream;
 use CBOR\TextStringObject;
 use CBOR\UnsignedIntegerObject;
 use Hermod\Contracts\SerializerContract;
 use Hermod\Exceptions\SerializationException;
 
+/**
+ * Serializzatore CBOR per messaggi WAMP.
+ * * Questa classe gestisce la conversione tra array nativi PHP e il formato binario CBOR,
+ * implementando le specifiche necessarie per il protocollo WAMP.
+ */
 class CborSerializer implements SerializerContract
 {
+    /**
+     * Serializza un array PHP in una stringa binaria CBOR.
+     *
+     * @param array $message Il messaggio da serializzare.
+     * @return string La rappresentazione binaria CBOR.
+     * @throws SerializationException Se avviene un errore durante la codifica.
+     */
     public function serialize(array $message): string
     {
         try {
-            /**
-             * @var \CBOR\CBORObject $cbor 
-             */
             $cbor = $this->phpToCbor($message);
 
-            return $cbor->serializeObject();
+            return (string) $cbor;
         } catch (SerializationException $e) {
             throw $e;
         } catch (\Throwable $e) {
@@ -37,12 +47,20 @@ class CborSerializer implements SerializerContract
         }
     }
 
+    /**
+     * Deserializza una stringa binaria CBOR in un array PHP.
+     *
+     * @param string $raw I dati binari CBOR.
+     * @return array Il messaggio deserializzato.
+     * @throws SerializationException Se i dati non sono validi o non rappresentano un array.
+     */
     public function deserialize(string $raw): array
     {
         try {
             $stream  = StringStream::create($raw);
             $decoder = Decoder::create();
             $object  = $decoder->decode($stream);
+
             $decoded = $this->cborToPhp($object);
         } catch (SerializationException $e) {
             throw $e;
@@ -62,15 +80,23 @@ class CborSerializer implements SerializerContract
         return $decoded;
     }
 
+    /**
+     * Identificativo del sottoprotocollo WAMP.
+     *
+     * @return string
+     */
     public function subprotocol(): string
     {
         return 'wamp.2.cbor';
     }
 
-    // -------------------------------------------------------------------------
-    // Conversione PHP → CBOR
-    // -------------------------------------------------------------------------
-
+    /**
+     * Converte ricorsivamente valori PHP in oggetti CBOR.
+     *
+     * @param mixed $value
+     * @return CBORObject
+     * @throws SerializationException
+     */
     private function phpToCbor(mixed $value): CBORObject
     {
         return match (true) {
@@ -85,60 +111,93 @@ class CborSerializer implements SerializerContract
         };
     }
 
-    private function intToCbor(int $value): CBORObject
-    {
-        if ($value >= 0) {
-            return UnsignedIntegerObject::create($value);
-        }
-
-        return NegativeIntegerObject::create($value);
-    }
-
+    /**
+     * Converte un array PHP in ListObject o MapObject a seconda della struttura.
+     *
+     * @param array $value
+     * @return CBORObject
+     */
     private function arrayToCbor(array $value): CBORObject
     {
-        // array_is_list → true se chiavi sono 0,1,2,... → CBOR Array
-        // altrimenti è una mappa con chiavi stringa → CBOR Map
         if (array_is_list($value)) {
-            return $this->listToCbor($value);
+            $list = ListObject::create();
+            foreach ($value as $item) {
+                $list->add($this->phpToCbor($item));
+            }
+            return $list;
         }
 
-        return $this->mapToCbor($value);
-    }
-
-    private function listToCbor(array $value): ListObject
-    {
-        $list = ListObject::create();
-
-        foreach ($value as $item) {
-            $list->add($this->phpToCbor($item));
-        }
-
-        return $list;
-    }
-
-    private function mapToCbor(array $value): MapObject
-    {
         $map = MapObject::create();
-
         foreach ($value as $key => $item) {
-            // Le chiavi WAMP nelle map sono sempre stringhe
-            $map->add(
-                TextStringObject::create((string) $key),
-                $this->phpToCbor($item)
-            );
-        }
+            $cborKey = is_int($key)
+                ? $this->intToCbor($key)
+                : TextStringObject::create((string) $key);
 
+            $map->add($cborKey, $this->phpToCbor($item));
+        }
         return $map;
     }
 
-    // -------------------------------------------------------------------------
-    // Conversione CBOR → PHP
-    // -------------------------------------------------------------------------
+    /**
+     * Gestisce la creazione di interi con segno o senza segno.
+     *
+     * @param int $value
+     * @return CBORObject
+     */
+    private function intToCbor(int $value): CBORObject
+    {
+        return $value >= 0
+            ? UnsignedIntegerObject::create($value)
+            : NegativeIntegerObject::create($value);
+    }
 
+    /**
+     * Converte ricorsivamente oggetti CBOR in tipi nativi PHP.
+     *
+     * @param CBORObject $object
+     * @return mixed
+     */
     private function cborToPhp(CBORObject $object): mixed
     {
-        // normalize() converte ricorsivamente il CBOR object
-        // in tipi PHP nativi (int, string, bool, null, array)
-        return $object->normalize();
+        return match (true) {
+            $object instanceof UnsignedIntegerObject,
+            $object instanceof NegativeIntegerObject
+            => (int) $object->getValue(),
+
+            $object instanceof TextStringObject
+            => $object->getValue(),
+
+            $object instanceof TrueObject  => true,
+            $object instanceof FalseObject => false,
+            $object instanceof NullObject  => null,
+
+            $object instanceof ListObject => array_map(
+                fn($item) => $this->cborToPhp($item),
+                iterator_to_array($object)
+            ),
+
+            $object instanceof MapObject => $this->mapFromCbor($object),
+
+            default => $object->normalize(),
+        };
+    }
+
+    /**
+     * Trasforma un MapObject CBOR in un array associativo PHP.
+     *
+     * @param MapObject $map
+     * @return array
+     */
+    private function mapFromCbor(MapObject $map): array
+    {
+        $result = [];
+        foreach ($map as $item) {
+            /** @var MapItem $item */
+            $key   = $this->cborToPhp($item->getKey());
+            $value = $this->cborToPhp($item->getValue());
+
+            $result[$key] = $value;
+        }
+        return $result;
     }
 }
