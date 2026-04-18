@@ -94,7 +94,28 @@ class WampClient implements WampClientContract
     {
         $this->ensureConnected();
 
-        return $this->caller->callAsync($procedure, $args, $kwargs);
+        // Avvolgiamo tutto in una fiber AMPHP
+        // che gestisce autonomamente il loop di ricezione
+        return \Amp\async(function () use ($procedure, $args, $kwargs): mixed {
+            // 1. Invia CALL e ottieni il Future interno
+            $future = $this->caller->callAsync($procedure, $args, $kwargs);
+
+            // 2. Leggi messaggi finché il RESULT non arriva
+            while (!$future->isComplete()) {
+                try {
+                    $message = $this->session->receive();
+                    $this->dispatcher->dispatch($message);
+                } catch (\Hermod\Exceptions\TransportException $e) {
+                    throw new WampClientException(
+                        "Connessione persa durante l'attesa del risultato: {$e->getMessage()}",
+                        previous: $e
+                    );
+                }
+            }
+
+            // 3. Future già completo — ritorna immediatamente
+            return $future->await();
+        });
     }
 
     // -------------------------------------------------------------------------
