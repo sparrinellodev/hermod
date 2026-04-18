@@ -10,9 +10,9 @@ describe('SerializerFactory', function () {
 
     beforeEach(function () {
         $this->factory = new SerializerFactory([
-            'json'    => JsonSerializer::class,
+            'json' => JsonSerializer::class,
             'msgpack' => MsgpackSerializer::class,
-            'cbor'    => CborSerializer::class,
+            'cbor' => CborSerializer::class,
         ]);
     });
 

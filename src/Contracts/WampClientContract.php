@@ -2,7 +2,7 @@
 
 namespace Hermod\Contracts;
 
-interface WampClientContract extends CallerContract, CalleeContract
+interface WampClientContract extends CalleeContract, CallerContract
 {
     /**
      * Connette al router e stabilisce la sessione WAMP.

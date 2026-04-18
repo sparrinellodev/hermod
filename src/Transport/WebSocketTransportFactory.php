@@ -9,11 +9,11 @@ use Hermod\Contracts\TransportContract;
 class WebSocketTransportFactory
 {
     public function make(
-        string              $url,
-        SerializerContract  $serializer,
+        string $url,
+        SerializerContract $serializer,
     ): TransportContract {
         return new WebSocketTransport(
-            connector: new Rfc6455Connector(),
+            connector: new Rfc6455Connector,
             serializer: $serializer,
             url: $url,
         );

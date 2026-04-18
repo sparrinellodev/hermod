@@ -35,9 +35,9 @@ class PendingCallRegistry
      */
     public function get(int $requestId): PendingCall
     {
-        if (!isset($this->pending[$requestId])) {
+        if (! isset($this->pending[$requestId])) {
             throw new RpcException(
-                "Nessuna chiamata pendente trovata per requestId: {$requestId}"
+                "Nessuna chiamata pendente trovata per requestId: {$requestId}",
             );
         }
 
@@ -51,6 +51,7 @@ class PendingCallRegistry
     {
         $call = $this->get($requestId);
         unset($this->pending[$requestId]);
+
         return $call;
     }
 

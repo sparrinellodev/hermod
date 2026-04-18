@@ -20,13 +20,13 @@ class WampCallCommand extends Command
     public function handle(WampClientFactory $factory): int
     {
         $procedure = $this->argument('procedure');
-        $args      = $this->resolveArgs();
-        $kwargs    = $this->resolveKwargs();
-        $config    = $this->resolveConfig();
+        $args = $this->resolveArgs();
+        $kwargs = $this->resolveKwargs();
+        $config = $this->resolveConfig();
 
         $this->info("Chiamata RPC: {$procedure}");
-        $this->line("Args:   " . json_encode($args));
-        $this->line("Kwargs: " . json_encode($kwargs));
+        $this->line('Args:   '.json_encode($args));
+        $this->line('Kwargs: '.json_encode($kwargs));
         $this->newLine();
 
         $client = $factory->make($config);
@@ -35,9 +35,9 @@ class WampCallCommand extends Command
             $client->connect();
             $this->info("Connesso. Session ID: {$client->getSessionId()}");
 
-            $start  = microtime(true);
+            $start = microtime(true);
             $result = $client->call($procedure, $args, $kwargs);
-            $ms     = round((microtime(true) - $start) * 1000, 2);
+            $ms = round((microtime(true) - $start) * 1000, 2);
 
             $this->newLine();
             $this->info("✓ Risultato ({$ms}ms):");
@@ -48,10 +48,12 @@ class WampCallCommand extends Command
             $this->newLine();
             $this->error("✗ Errore RPC: {$e->getMessage()}");
             $this->line("WAMP Error: {$e->wampError}");
+
             return Command::FAILURE;
         } catch (\Throwable $e) {
             $this->newLine();
             $this->error("✗ Errore: {$e->getMessage()}");
+
             return Command::FAILURE;
         } finally {
             if ($client->isConnected()) {
@@ -64,6 +66,7 @@ class WampCallCommand extends Command
     // Helpers
     // -------------------------------------------------------------------------
 
+    /** @return array<mixed> */
     private function resolveArgs(): array
     {
         $raw = $this->argument('args') ?? [];
@@ -75,14 +78,15 @@ class WampCallCommand extends Command
             }
 
             return match (strtolower($value)) {
-                'true'  => true,
+                'true' => true,
                 'false' => false,
-                'null'  => null,
+                'null' => null,
                 default => $value,
             };
         }, $raw);
     }
 
+    /** @return array<mixed> */
     private function resolveKwargs(): array
     {
         $raw = $this->option('kwargs');
@@ -93,17 +97,20 @@ class WampCallCommand extends Command
 
         try {
             $decoded = json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR);
+
             return is_array($decoded) ? $decoded : [];
         } catch (\JsonException) {
-            $this->warn("--kwargs non è JSON valido, verrà ignorato.");
+            $this->warn('--kwargs non è JSON valido, verrà ignorato.');
+
             return [];
         }
     }
 
+    /** @return array<mixed> */
     private function resolveConfig(): array
     {
         $connectionName = $this->option('connection');
-        $config         = config("hermod.connections.{$connectionName}", []);
+        $config = config("hermod.connections.{$connectionName}", []);
 
         if (empty($config)) {
             $this->error("Connessione '{$connectionName}' non trovata in config/hermod.php");

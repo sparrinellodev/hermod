@@ -6,14 +6,13 @@ use Amp\Future;
 use Hermod\Contracts\CallerContract;
 use Hermod\Exceptions\RpcException;
 use Hermod\Message\MessageFactory;
-use Hermod\Message\MessageType;
 use Hermod\Message\WampMessage;
 use Hermod\Session\WampSession;
 
 class Caller implements CallerContract
 {
     public function __construct(
-        private readonly WampSession         $session,
+        private readonly WampSession $session,
         private readonly PendingCallRegistry $registry,
     ) {}
 
@@ -23,6 +22,9 @@ class Caller implements CallerContract
 
     /**
      * Chiamata RPC sincrona — blocca fino alla risposta.
+     *
+     * @param  array<mixed>  $args
+     * @param  array<mixed>  $kwargs
      */
     public function call(string $procedure, array $args = [], array $kwargs = []): mixed
     {
@@ -31,6 +33,10 @@ class Caller implements CallerContract
 
     /**
      * Chiamata RPC asincrona — restituisce un Future.
+     *
+     * @param  array<mixed>  $args
+     * @param  array<mixed>  $kwargs
+     * @return Future<mixed>
      */
     public function callAsync(string $procedure, array $args = [], array $kwargs = []): Future
     {
@@ -44,7 +50,7 @@ class Caller implements CallerContract
                 procedure: $procedure,
                 args: $args,
                 kwargs: $kwargs,
-            )
+            ),
         );
 
         // 3. Restituisce il Future — si risolverà quando arriverà RESULT/ERROR
@@ -62,8 +68,8 @@ class Caller implements CallerContract
     public function onResult(WampMessage $message): void
     {
         $requestId = (int) $message->get(1);
-        $args      = $message->get(3) ?? [];
-        $kwargs    = $message->get(4) ?? [];
+        $args = $message->get(3) ?? [];
+        $kwargs = $message->get(4) ?? [];
 
         try {
             $pending = $this->registry->pull($requestId);
@@ -75,10 +81,10 @@ class Caller implements CallerContract
         // Se c'è un solo valore restituiamo quello direttamente,
         // altrimenti restituiamo l'array completo
         $result = match (true) {
-            !empty($kwargs)        => $kwargs,
-            count($args) === 1    => $args[0],
-            count($args) > 1      => $args,
-            default                => null,
+            ! empty($kwargs) => $kwargs,
+            count($args) === 1 => $args[0],
+            count($args) > 1 => $args,
+            default => null,
         };
 
         $pending->resolve($result);
@@ -92,7 +98,7 @@ class Caller implements CallerContract
     {
         $requestId = (int) $message->get(2);
         $wampError = (string) ($message->get(4) ?? 'wamp.error.unknown');
-        $args      = $message->get(5) ?? [];
+        $args = $message->get(5) ?? [];
 
         try {
             $pending = $this->registry->pull($requestId);

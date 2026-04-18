@@ -23,7 +23,8 @@
         "pestphp/pest": "^3.0",
         "phpstan/phpstan": "^2.0",
         "laravel/pint": "^1.0",
-        "orchestra/testbench": "^10.0"
+        "orchestra/testbench": "^10.0",
+        "nunomaduro/larastan": "^3.9"
     },
     "autoload": {
         "psr-4": {

@@ -2,24 +2,23 @@
 
 namespace Hermod\Client;
 
+use Amp\Future;
 use Hermod\Contracts\WampClientContract;
-use Hermod\Exceptions\RpcException;
 use Hermod\Exceptions\WampClientException;
 use Hermod\Rpc\Callee;
 use Hermod\Rpc\Caller;
 use Hermod\Rpc\MessageDispatcher;
 use Hermod\Session\WampSession;
-use Amp\Future;
 
 class WampClient implements WampClientContract
 {
     private bool $listening = false;
 
     public function __construct(
-        private readonly WampSession        $session,
-        private readonly Caller             $caller,
-        private readonly Callee             $callee,
-        private readonly MessageDispatcher  $dispatcher,
+        private readonly WampSession $session,
+        private readonly Caller $caller,
+        private readonly Callee $callee,
+        private readonly MessageDispatcher $dispatcher,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -37,7 +36,7 @@ class WampClient implements WampClientContract
 
     public function disconnect(): void
     {
-        if (!$this->isConnected()) {
+        if (! $this->isConnected()) {
             return;
         }
 
@@ -54,6 +53,9 @@ class WampClient implements WampClientContract
     // CallerContract
     // -------------------------------------------------------------------------
 
+    /** @param array<mixed> $args
+     * @param  array<mixed>  $kwargs
+     */
     public function call(string $procedure, array $args = [], array $kwargs = []): mixed
     {
         $this->ensureConnected();
@@ -61,6 +63,10 @@ class WampClient implements WampClientContract
         return $this->caller->call($procedure, $args, $kwargs);
     }
 
+    /** @param array<mixed> $args
+     * @param  array<mixed>  $kwargs
+     * @return Future<mixed>
+     */
     public function callAsync(string $procedure, array $args = [], array $kwargs = []): Future
     {
         $this->ensureConnected();
@@ -109,7 +115,7 @@ class WampClient implements WampClientContract
 
         $this->listening = true;
 
-        while ($this->listening && $this->isConnected()) {
+        while ($this->isConnected()) {
             try {
                 $message = $this->session->receive();
                 $this->dispatcher->dispatch($message);
@@ -122,7 +128,7 @@ class WampClient implements WampClientContract
                 $this->listening = false;
                 throw new WampClientException(
                     "Errore nel loop di ricezione: {$e->getMessage()}",
-                    previous: $e
+                    previous: $e,
                 );
             }
         }
@@ -160,9 +166,9 @@ class WampClient implements WampClientContract
 
     private function ensureConnected(): void
     {
-        if (!$this->isConnected()) {
+        if (! $this->isConnected()) {
             throw new WampClientException(
-                'Client non connesso. Chiamare connect() prima di eseguire operazioni.'
+                'Client non connesso. Chiamare connect() prima di eseguire operazioni.',
             );
         }
     }

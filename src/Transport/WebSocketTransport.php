@@ -15,9 +15,9 @@ class WebSocketTransport implements TransportContract
     private ?WebsocketConnection $connection = null;
 
     public function __construct(
-        private readonly WebsocketConnector   $connector,
-        private readonly SerializerContract   $serializer,
-        private readonly string               $url,
+        private readonly WebsocketConnector $connector,
+        private readonly SerializerContract $serializer,
+        private readonly string $url,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -38,14 +38,14 @@ class WebSocketTransport implements TransportContract
         } catch (\Throwable $e) {
             throw new TransportException(
                 "Impossibile connettersi al router WAMP su '{$this->url}': {$e->getMessage()}",
-                previous: $e
+                previous: $e,
             );
         }
     }
 
     public function close(): void
     {
-        if (!$this->isConnected()) {
+        if (! $this->isConnected()) {
             return;
         }
 
@@ -61,7 +61,7 @@ class WebSocketTransport implements TransportContract
     public function isConnected(): bool
     {
         return $this->connection !== null
-            && !$this->connection->isClosed();
+            && ! $this->connection->isClosed();
     }
 
     // -------------------------------------------------------------------------
@@ -83,12 +83,12 @@ class WebSocketTransport implements TransportContract
             $this->connection = null;
             throw new TransportException(
                 'Connessione WebSocket chiusa durante l\'invio del messaggio.',
-                previous: $e
+                previous: $e,
             );
         } catch (\Throwable $e) {
             throw new TransportException(
                 "Errore durante l\'invio del messaggio: {$e->getMessage()}",
-                previous: $e
+                previous: $e,
             );
         }
     }
@@ -104,7 +104,7 @@ class WebSocketTransport implements TransportContract
             if ($message === null) {
                 $this->connection = null;
                 throw new TransportException(
-                    'Connessione WebSocket chiusa dal router durante la ricezione.'
+                    'Connessione WebSocket chiusa dal router durante la ricezione.',
                 );
             }
 
@@ -115,12 +115,12 @@ class WebSocketTransport implements TransportContract
             $this->connection = null;
             throw new TransportException(
                 'Connessione WebSocket chiusa durante la ricezione del messaggio.',
-                previous: $e
+                previous: $e,
             );
         } catch (\Throwable $e) {
             throw new TransportException(
                 "Errore durante la ricezione del messaggio: {$e->getMessage()}",
-                previous: $e
+                previous: $e,
             );
         }
     }
@@ -134,7 +134,7 @@ class WebSocketTransport implements TransportContract
         return new WebsocketHandshake(
             $this->url,
             // Negozia il subprotocol WAMP corretto (json/msgpack/cbor)
-            [$this->serializer->subprotocol()]
+            [$this->serializer->subprotocol()],
         );
     }
 
@@ -143,15 +143,15 @@ class WebSocketTransport implements TransportContract
         return in_array(
             $this->serializer->subprotocol(),
             ['wamp.2.msgpack', 'wamp.2.cbor'],
-            strict: true
+            strict: true,
         );
     }
 
     private function ensureConnected(): void
     {
-        if (!$this->isConnected()) {
+        if (! $this->isConnected()) {
             throw new TransportException(
-                'Nessuna connessione WebSocket attiva. Chiamare connect() prima di inviare messaggi.'
+                'Nessuna connessione WebSocket attiva. Chiamare connect() prima di inviare messaggi.',
             );
         }
     }

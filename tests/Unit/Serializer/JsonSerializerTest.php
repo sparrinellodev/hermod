@@ -6,7 +6,7 @@ use Hermod\Serializer\JsonSerializer;
 describe('JsonSerializer', function () {
 
     beforeEach(function () {
-        $this->serializer = new JsonSerializer();
+        $this->serializer = new JsonSerializer;
     });
 
     it('serializza un array in JSON corretto', function () {
@@ -42,8 +42,8 @@ describe('JsonSerializer', function () {
 
     it('è simmetrico — serialize poi deserialize restituisce i dati originali', function () {
         $original = [48, 42, [], 'com.myapp.procedura', [1, 2, 3], ['chiave' => 'valore']];
-        $result   = $this->serializer->deserialize(
-            $this->serializer->serialize($original)
+        $result = $this->serializer->deserialize(
+            $this->serializer->serialize($original),
         );
 
         expect($result)->toBe($original);

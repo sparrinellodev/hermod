@@ -1,0 +1,48 @@
+name: Feature Request
+description: Proponi una nuova funzionalità
+title: "[Feature]: "
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Hai un'idea per migliorare Hermod? Raccontacela!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Il problema che vuoi risolvere
+      description: Descrivi chiaramente il problema o la limitazione attuale.
+      placeholder: "Attualmente non è possibile..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Soluzione proposta
+      description: Descrivi come vorresti che funzionasse.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative considerate
+      description: Hai considerato altre soluzioni?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: A quale fase appartiene questa feature?
+      options:
+        - "Fase 1 — RPC Core"
+        - "Fase 2 — PubSub"
+        - "Fase 3 — Auth & Resilienza"
+        - "Fase 4 — Serializzatori & Produzione"
+        - "Nuova fase"
+    validations:
+      required: false

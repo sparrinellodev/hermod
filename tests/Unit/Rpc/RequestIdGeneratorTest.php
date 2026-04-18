@@ -5,7 +5,7 @@ use Hermod\Rpc\RequestIdGenerator;
 describe('RequestIdGenerator', function () {
 
     beforeEach(function () {
-        $this->generator = new RequestIdGenerator();
+        $this->generator = new RequestIdGenerator;
     });
 
     it('genera un intero positivo', function () {
@@ -24,8 +24,8 @@ describe('RequestIdGenerator', function () {
 
     it('genera ID diversi in chiamate successive', function () {
         $ids = array_map(
-            fn() => $this->generator->generate(),
-            range(1, 100)
+            fn () => $this->generator->generate(),
+            range(1, 100),
         );
 
         // Con 100 ID casuali in un range di 2^53 la probabilità

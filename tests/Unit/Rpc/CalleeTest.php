@@ -11,10 +11,10 @@ describe('Callee', function () {
 
     beforeEach(function () {
         $this->session = Mockery::mock(WampSession::class);
-        $this->callee  = new Callee($this->session, new RequestIdGenerator());
+        $this->callee = new Callee($this->session, new RequestIdGenerator);
     });
 
-    afterEach(fn() => Mockery::close());
+    afterEach(fn () => Mockery::close());
 
     it('invia REGISTER alla sessione quando si registra una procedura', function () {
         $this->session
@@ -25,7 +25,7 @@ describe('Callee', function () {
                     && $message->get(3) === 'com.myapp.somma';
             });
 
-        $this->callee->register('com.myapp.somma', fn($args) => $args[0] + $args[1]);
+        $this->callee->register('com.myapp.somma', fn ($args) => $args[0] + $args[1]);
 
         expect(true)->toBeTrue();
     });
@@ -33,20 +33,20 @@ describe('Callee', function () {
     it('lancia eccezione se si registra la stessa procedura due volte', function () {
         $this->session->shouldReceive('send')->once();
 
-        $this->callee->register('com.myapp.somma', fn() => null);
+        $this->callee->register('com.myapp.somma', fn () => null);
 
-        expect(fn() => $this->callee->register('com.myapp.somma', fn() => null))
+        expect(fn () => $this->callee->register('com.myapp.somma', fn () => null))
             ->toThrow(CalleeException::class, 'già registrata');
     });
 
     it('esegue l\'handler e invia YIELD quando riceve INVOCATION', function () {
         $this->session->shouldReceive('send')->twice();
 
-        $this->callee->register('com.myapp.somma', fn($args) => $args[0] + $args[1]);
+        $this->callee->register('com.myapp.somma', fn ($args) => $args[0] + $args[1]);
 
         // Simuliamo REGISTERED dal router
         // [65, requestId, registrationId]
-        $pendingData = (new \ReflectionProperty($this->callee, 'pendingRegistrations'))
+        $pendingData = (new ReflectionProperty($this->callee, 'pendingRegistrations'))
             ->getValue($this->callee);
 
         $requestId = array_values($pendingData)[0]['requestId'];
@@ -72,13 +72,13 @@ describe('Callee', function () {
         $this->session->shouldReceive('send')->twice();
 
         $this->callee->register('com.myapp.fallisce', function () {
-            throw new \RuntimeException('Qualcosa è andato storto');
+            throw new RuntimeException('Qualcosa è andato storto');
         });
 
-        $pendingData = (new \ReflectionProperty($this->callee, 'pendingRegistrations'))
+        $pendingData = (new ReflectionProperty($this->callee, 'pendingRegistrations'))
             ->getValue($this->callee);
 
-        $requestId  = array_values($pendingData)[0]['requestId'];
+        $requestId = array_values($pendingData)[0]['requestId'];
         $registered = WampMessage::fromArray([65, $requestId, 2001]);
         $this->callee->onRegistered($registered);
 
@@ -96,13 +96,13 @@ describe('Callee', function () {
     it('restituisce le registrazioni attive', function () {
         $this->session->shouldReceive('send')->once();
 
-        $handler = fn($args) => $args[0] * 2;
+        $handler = fn ($args) => $args[0] * 2;
         $this->callee->register('com.myapp.doppio', $handler);
 
-        $pendingData = (new \ReflectionProperty($this->callee, 'pendingRegistrations'))
+        $pendingData = (new ReflectionProperty($this->callee, 'pendingRegistrations'))
             ->getValue($this->callee);
 
-        $requestId  = array_values($pendingData)[0]['requestId'];
+        $requestId = array_values($pendingData)[0]['requestId'];
         $registered = WampMessage::fromArray([65, $requestId, 3001]);
         $this->callee->onRegistered($registered);
 

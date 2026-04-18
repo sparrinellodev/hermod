@@ -9,14 +9,21 @@ class MsgpackSerializer implements SerializerContract
 {
     public function __construct()
     {
-        if (!extension_loaded('msgpack')) {
+        if (! extension_loaded('msgpack')) {
             throw new SerializationException(
-                'Estensione PHP "msgpack" non installata. ' .
-                    'Installala con: pecl install msgpack'
+                'Estensione PHP "msgpack" non installata. '.
+                    'Installala con: pecl install msgpack',
             );
         }
     }
 
+    /**
+     * Summary of serialize
+     *
+     * @param  array<mixed>  $message
+     *
+     * @throws SerializationException
+     */
     public function serialize(array $message): string
     {
         $encoded = msgpack_pack($message);
@@ -28,6 +35,13 @@ class MsgpackSerializer implements SerializerContract
         return $encoded;
     }
 
+    /**
+     * Summary of deserialize
+     *
+     * @return array<mixed>
+     *
+     * @throws SerializationException
+     */
     public function deserialize(string $raw): array
     {
         try {
@@ -43,13 +57,13 @@ class MsgpackSerializer implements SerializerContract
 
             throw new SerializationException(
                 "Impossibile deserializzare il messaggio WAMP dal MessagePack: {$e->getMessage()}",
-                previous: $e
+                previous: $e,
             );
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             throw new SerializationException(
-                'Il messaggio WAMP deserializzato non è un array valido.'
+                'Il messaggio WAMP deserializzato non è un array valido.',
             );
         }
 

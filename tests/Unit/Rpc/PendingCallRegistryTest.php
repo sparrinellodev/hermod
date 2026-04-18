@@ -8,7 +8,7 @@ use Hermod\Rpc\RequestIdGenerator;
 describe('PendingCallRegistry', function () {
 
     beforeEach(function () {
-        $this->registry = new PendingCallRegistry(new RequestIdGenerator());
+        $this->registry = new PendingCallRegistry(new RequestIdGenerator);
     });
 
     it('registra una chiamata pendente e restituisce un PendingCall', function () {
@@ -21,7 +21,7 @@ describe('PendingCallRegistry', function () {
     });
 
     it('recupera una chiamata pendente tramite requestId', function () {
-        $pending   = $this->registry->register('com.myapp.test');
+        $pending = $this->registry->register('com.myapp.test');
         $retrieved = $this->registry->get($pending->requestId);
 
         expect($retrieved)->toBe($pending);
@@ -31,7 +31,7 @@ describe('PendingCallRegistry', function () {
         $pending = $this->registry->register('com.myapp.test');
         $this->registry->pull($pending->requestId);
 
-        expect(fn() => $this->registry->get($pending->requestId))
+        expect(fn () => $this->registry->get($pending->requestId))
             ->toThrow(RpcException::class);
     });
 
@@ -58,7 +58,7 @@ describe('PendingCallRegistry', function () {
         $p1 = $this->registry->register('com.myapp.uno');
         $p2 = $this->registry->register('com.myapp.due');
 
-        $error = new \RuntimeException('Connessione persa');
+        $error = new RuntimeException('Connessione persa');
         $this->registry->rejectAll($error);
 
         expect($this->registry->isEmpty())->toBeTrue();

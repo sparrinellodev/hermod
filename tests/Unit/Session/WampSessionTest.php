@@ -1,6 +1,5 @@
 <?php
 
-use Hermod\Contracts\SerializerContract;
 use Hermod\Contracts\TransportContract;
 use Hermod\Exceptions\SessionException;
 use Hermod\Exceptions\WampProtocolException;
@@ -13,12 +12,12 @@ use Hermod\Session\WampSession;
 describe('WampSession', function () {
 
     beforeEach(function () {
-        $this->transport  = Mockery::mock(TransportContract::class);
-        $this->serializer = new JsonSerializer();
-        $this->session    = new WampSession($this->transport, $this->serializer, 'realm1');
+        $this->transport = Mockery::mock(TransportContract::class);
+        $this->serializer = new JsonSerializer;
+        $this->session = new WampSession($this->transport, $this->serializer, 'realm1');
     });
 
-    afterEach(fn() => Mockery::close());
+    afterEach(fn () => Mockery::close());
 
     it('parte nello stato Closed', function () {
         expect($this->session->getState())->toBe(SessionState::Closed)
@@ -49,7 +48,7 @@ describe('WampSession', function () {
         $this->transport->shouldReceive('receive')->once()->andReturn($abort);
         $this->transport->shouldReceive('close')->once();
 
-        expect(fn() => $this->session->hello())
+        expect(fn () => $this->session->hello())
             ->toThrow(WampProtocolException::class, 'wamp.error.no_such_realm');
     });
 
@@ -62,7 +61,7 @@ describe('WampSession', function () {
 
         $this->session->hello();
 
-        expect(fn() => $this->session->hello())
+        expect(fn () => $this->session->hello())
             ->toThrow(SessionException::class, 'hello');
     });
 
@@ -87,7 +86,7 @@ describe('WampSession', function () {
     it('lancia SessionException se send() chiamato senza sessione attiva', function () {
         $message = WampMessage::create(MessageType::CALL, 1, [], 'com.test', []);
 
-        expect(fn() => $this->session->send($message))
+        expect(fn () => $this->session->send($message))
             ->toThrow(SessionException::class, 'send');
     });
 });

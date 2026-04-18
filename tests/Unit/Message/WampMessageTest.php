@@ -45,7 +45,7 @@ describe('WampMessage', function () {
     describe('toArray()', function () {
 
         it('restituisce il payload completo', function () {
-            $data    = [50, 1, [], [8]];
+            $data = [50, 1, [], [8]];
             $message = WampMessage::fromArray($data);
 
             expect($message->toArray())->toBe($data);

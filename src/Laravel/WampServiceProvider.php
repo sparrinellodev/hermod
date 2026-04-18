@@ -29,8 +29,8 @@ class WampServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__ . '/../../config/hermod.php',
-            'hermod'
+            __DIR__.'/../../config/hermod.php',
+            'hermod',
         );
 
         $this->registerFactories();
@@ -46,7 +46,7 @@ class WampServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__ . '/../../config/hermod.php' => config_path('hermod.php'),
+                __DIR__.'/../../config/hermod.php' => config_path('hermod.php'),
             ], 'hermod-config');
         }
     }
@@ -59,16 +59,16 @@ class WampServiceProvider extends ServiceProvider
     {
         $this->app->singleton(SerializerFactory::class, function ($app) {
             return new SerializerFactory(
-                $app['config']->get('hermod.serializers', [])
+                $app['config']->get('hermod.serializers', []),
             );
         });
 
         $this->app->singleton(WebSocketTransportFactory::class, function () {
-            return new WebSocketTransportFactory();
+            return new WebSocketTransportFactory;
         });
 
         $this->app->singleton(WampSessionFactory::class, function () {
-            return new WampSessionFactory();
+            return new WampSessionFactory;
         });
 
         $this->app->singleton(WampClientFactory::class, function ($app) {
@@ -89,11 +89,11 @@ class WampServiceProvider extends ServiceProvider
         // Binding principale — usa la connessione 'default'
         $this->app->singleton(WampClient::class, function ($app) {
             $connectionName = $app['config']->get('hermod.default', 'default');
-            $config         = $app['config']->get("hermod.connections.{$connectionName}");
+            $config = $app['config']->get("hermod.connections.{$connectionName}");
 
             if (empty($config)) {
                 throw new \RuntimeException(
-                    "Configurazione Hermod non trovata per la connessione '{$connectionName}'."
+                    "Configurazione Hermod non trovata per la connessione '{$connectionName}'.",
                 );
             }
 

@@ -6,11 +6,15 @@ interface SerializerContract
 {
     /**
      * Serializza un messaggio WAMP in stringa da inviare via WebSocket.
+     *
+     * @param  array<mixed>  $message
      */
     public function serialize(array $message): string;
 
     /**
      * Deserializza la stringa raw ricevuta in array WAMP.
+     *
+     * @return array<mixed>
      */
     public function deserialize(string $raw): array;
 

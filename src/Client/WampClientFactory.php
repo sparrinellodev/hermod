@@ -8,23 +8,23 @@ use Hermod\Rpc\MessageDispatcher;
 use Hermod\Rpc\PendingCallRegistry;
 use Hermod\Rpc\RequestIdGenerator;
 use Hermod\Serializer\SerializerFactory;
-use Hermod\Session\WampSession;
 use Hermod\Session\WampSessionFactory;
 use Hermod\Transport\WebSocketTransportFactory;
 
 class WampClientFactory
 {
     public function __construct(
-        private readonly SerializerFactory       $serializerFactory,
+        private readonly SerializerFactory $serializerFactory,
         private readonly WebSocketTransportFactory $transportFactory,
-        private readonly WampSessionFactory      $sessionFactory,
+        private readonly WampSessionFactory $sessionFactory,
     ) {}
 
+    /** @param array<mixed> $config */
     public function make(array $config): WampClient
     {
         // 1. Serializer
         $serializer = $this->serializerFactory->make(
-            $config['serializer'] ?? 'json'
+            $config['serializer'] ?? 'json',
         );
 
         // 2. Transport
@@ -41,10 +41,10 @@ class WampClientFactory
         );
 
         // 4. RPC Layer
-        $idGenerator = new RequestIdGenerator();
-        $registry    = new PendingCallRegistry($idGenerator);
-        $caller      = new Caller($session, $registry);
-        $callee      = new Callee($session, $idGenerator);
+        $idGenerator = new RequestIdGenerator;
+        $registry = new PendingCallRegistry($idGenerator);
+        $caller = new Caller($session, $registry);
+        $callee = new Callee($session, $idGenerator);
 
         // 5. Dispatcher
         $dispatcher = new MessageDispatcher($session, $caller, $callee);

@@ -5,6 +5,7 @@ namespace Hermod\Laravel\Console;
 use Hermod\Client\WampClient;
 use Hermod\Client\WampClientFactory;
 use Hermod\Exceptions\WampClientException;
+use Hermod\Laravel\Events\WampServeStarted;
 use Illuminate\Console\Command;
 
 class WampServeCommand extends Command
@@ -21,21 +22,21 @@ class WampServeCommand extends Command
     {
         $config = $this->resolveConfig();
 
-        $this->info("Hermod WAMP Worker");
-        $this->info("──────────────────────────────────────");
+        $this->info('Hermod WAMP Worker');
+        $this->info('──────────────────────────────────────');
         $this->info("URL:         {$config['url']}");
         $this->info("Realm:       {$config['realm']}");
         $this->info("Serializer:  {$config['serializer']}");
-        $this->info("──────────────────────────────────────");
+        $this->info('──────────────────────────────────────');
 
         $client = $factory->make($config);
 
         try {
-            $this->info("Connessione al router WAMP...");
+            $this->info('Connessione al router WAMP...');
             $client->connect();
 
             $this->info("Sessione stabilita. Session ID: {$client->getSessionId()}");
-            $this->info("Worker in ascolto. Premi Ctrl+C per uscire.");
+            $this->info('Worker in ascolto. Premi Ctrl+C per uscire.');
             $this->newLine();
 
             // Registra le procedure definite nell'app tramite evento
@@ -45,14 +46,16 @@ class WampServeCommand extends Command
             $client->listen();
         } catch (WampClientException $e) {
             $this->error("Errore WAMP: {$e->getMessage()}");
+
             return Command::FAILURE;
         } catch (\Throwable $e) {
             $this->error("Errore inatteso: {$e->getMessage()}");
+
             return Command::FAILURE;
         } finally {
             if ($client->isConnected()) {
                 $client->disconnect();
-                $this->info("Disconnesso dal router WAMP.");
+                $this->info('Disconnesso dal router WAMP.');
             }
         }
 
@@ -63,10 +66,11 @@ class WampServeCommand extends Command
     // Helpers
     // -------------------------------------------------------------------------
 
+    /** @return array<mixed> */
     private function resolveConfig(): array
     {
         $connectionName = $this->option('connection');
-        $config         = config("hermod.connections.{$connectionName}", []);
+        $config = config("hermod.connections.{$connectionName}", []);
 
         if (empty($config)) {
             $this->error("Connessione '{$connectionName}' non trovata in config/hermod.php");
@@ -99,6 +103,6 @@ class WampServeCommand extends Command
         //     $event->client->register('com.myapp.somma', fn($args) => $args[0] + $args[1]);
         // });
 
-        event(new \Hermod\Laravel\Events\WampServeStarted($client));
+        event(new WampServeStarted($client));
     }
 }

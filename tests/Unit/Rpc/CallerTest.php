@@ -1,7 +1,7 @@
 <?php
 
 use Amp\Future;
-use Hermod\Message\MessageFactory;
+use Hermod\Exceptions\RpcException;
 use Hermod\Message\MessageType;
 use Hermod\Message\WampMessage;
 use Hermod\Rpc\Caller;
@@ -12,12 +12,12 @@ use Hermod\Session\WampSession;
 describe('Caller', function () {
 
     beforeEach(function () {
-        $this->session  = Mockery::mock(WampSession::class);
-        $this->registry = new PendingCallRegistry(new RequestIdGenerator());
-        $this->caller   = new Caller($this->session, $this->registry);
+        $this->session = Mockery::mock(WampSession::class);
+        $this->registry = new PendingCallRegistry(new RequestIdGenerator);
+        $this->caller = new Caller($this->session, $this->registry);
     });
 
-    afterEach(fn() => Mockery::close());
+    afterEach(fn () => Mockery::close());
 
     it('invia un messaggio CALL alla sessione', function () {
         $this->session
@@ -39,9 +39,9 @@ describe('Caller', function () {
         $future = $this->caller->callAsync('com.myapp.test', [3, 5]);
 
         // Recuperiamo il requestId dalla registry
-        $pending   = collect(
-            (new \ReflectionProperty($this->registry, 'pending'))
-                ->getValue($this->registry)
+        $pending = collect(
+            (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry),
         )->first();
 
         // Simuliamo RESULT dal router
@@ -58,8 +58,8 @@ describe('Caller', function () {
         $future = $this->caller->callAsync('com.myapp.test', [3, 5]);
 
         $pending = collect(
-            (new \ReflectionProperty($this->registry, 'pending'))
-                ->getValue($this->registry)
+            (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry),
         )->first();
 
         // Simuliamo ERROR dal router
@@ -67,8 +67,8 @@ describe('Caller', function () {
         $error = WampMessage::fromArray([8, 48, $pending->requestId, [], 'wamp.error.no_such_procedure']);
         $this->caller->onError($error);
 
-        expect(fn() => $future->await())
-            ->toThrow(\Hermod\Exceptions\RpcException::class, 'no_such_procedure');
+        expect(fn () => $future->await())
+            ->toThrow(RpcException::class, 'no_such_procedure');
     });
 
     it('ignora RESULT per requestId sconosciuto', function () {

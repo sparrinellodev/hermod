@@ -6,11 +6,12 @@ use RuntimeException;
 
 class WampProtocolException extends RuntimeException
 {
+    /** @param array<mixed> $details */
     public function __construct(
-        string                    $message,
-        public readonly string    $wampError = '',
-        public readonly array     $details = [],
-        ?\Throwable               $previous = null,
+        string $message,
+        public readonly string $wampError = '',
+        public readonly array $details = [],
+        ?\Throwable $previous = null,
     ) {
         parent::__construct($message, previous: $previous);
     }

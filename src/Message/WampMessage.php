@@ -6,6 +6,11 @@ use Hermod\Exceptions\InvalidMessageException;
 
 class WampMessage
 {
+    /**
+     * Summary of __construct
+     *
+     * @param  array<mixed>  $payload
+     */
     private function __construct(
         public readonly MessageType $type,
         public readonly array $payload,
@@ -13,10 +18,12 @@ class WampMessage
 
     /**
      * Crea un messaggio da un array raw (ricevuto dal router).
+     *
+     * @param  array<mixed>  $data
      */
     public static function fromArray(array $data): self
     {
-        if (empty($data) || !isset($data[0])) {
+        if (empty($data) || ! isset($data[0])) {
             throw new InvalidMessageException('Messaggio WAMP vuoto o malformato.');
         }
 
@@ -39,6 +46,8 @@ class WampMessage
 
     /**
      * Restituisce l'array completo del messaggio (type ID incluso).
+     *
+     * @return array<mixed>
      */
     public function toArray(): array
     {

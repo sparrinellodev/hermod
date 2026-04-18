@@ -1,0 +1,11 @@
+includes:
+    - vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+
+    ignoreErrors:
+        - '#Call to an undefined method Illuminate\\Support\\Facades\\.*#'
+        

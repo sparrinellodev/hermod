@@ -14,13 +14,16 @@ use Hermod\Message\WampMessage;
 class WampSession implements SessionContract
 {
     private SessionState $state = SessionState::Closed;
-    private ?int         $sessionId = null;
-    private array        $routerDetails = [];
+
+    private ?int $sessionId = null;
+
+    /** @var array<mixed> */
+    private array $routerDetails = [];
 
     public function __construct(
-        private readonly TransportContract  $transport,
+        private readonly TransportContract $transport,
         private readonly SerializerContract $serializer,
-        private readonly string             $realm,
+        private readonly string $realm,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -43,9 +46,9 @@ class WampSession implements SessionContract
 
         match ($message->type()) {
             MessageType::WELCOME => $this->handleWelcome($message),
-            MessageType::ABORT   => $this->handleAbort($message),
-            default              => throw new SessionException(
-                "Risposta inattesa durante l'handshake WAMP: {$message->type()->name}"
+            MessageType::ABORT => $this->handleAbort($message),
+            default => throw new SessionException(
+                "Risposta inattesa durante l'handshake WAMP: {$message->type()->name}",
             ),
         };
     }
@@ -87,6 +90,7 @@ class WampSession implements SessionContract
     public function receive(): WampMessage
     {
         $this->assertState(SessionState::Established, 'receive');
+
         return $this->receiveMessage();
     }
 
@@ -114,6 +118,11 @@ class WampSession implements SessionContract
         return $this->state;
     }
 
+    /**
+     * Summary of getRouterDetails
+     *
+     * @return array<mixed>
+     */
     public function getRouterDetails(): array
     {
         return $this->routerDetails;
@@ -128,21 +137,21 @@ class WampSession implements SessionContract
         // [2, sessionId, details]
         $sessionId = $message->get(1);
 
-        if (!is_int($sessionId)) {
+        if (! is_int($sessionId)) {
             throw new SessionException(
-                'Session ID non valido ricevuto nel messaggio WELCOME.'
+                'Session ID non valido ricevuto nel messaggio WELCOME.',
             );
         }
 
-        $this->sessionId     = $sessionId;
+        $this->sessionId = $sessionId;
         $this->routerDetails = $message->get(2) ?? [];
-        $this->state         = SessionState::Established;
+        $this->state = SessionState::Established;
     }
 
     private function handleAbort(WampMessage $message): void
     {
         // [3, details, reason]
-        $reason  = $message->get(2) ?? 'wamp.error.unknown';
+        $reason = $message->get(2) ?? 'wamp.error.unknown';
         $details = $message->get(1) ?? [];
 
         $this->closeSession();
@@ -166,14 +175,15 @@ class WampSession implements SessionContract
 
     private function receiveMessage(): WampMessage
     {
-        $raw  = $this->transport->receive();
+        $raw = $this->transport->receive();
         $data = $this->serializer->deserialize($raw);
+
         return WampMessage::fromArray($data);
     }
 
     private function closeSession(): void
     {
-        $this->state     = SessionState::Closed;
+        $this->state = SessionState::Closed;
         $this->sessionId = null;
         $this->transport->close();
     }
@@ -182,9 +192,9 @@ class WampSession implements SessionContract
     {
         if ($this->state !== $expected) {
             throw new SessionException(
-                "Impossibile eseguire '{$operation}': " .
-                    "stato attuale '{$this->state->name}', " .
-                    "stato richiesto '{$expected->name}'."
+                "Impossibile eseguire '{$operation}': ".
+                    "stato attuale '{$this->state->name}', ".
+                    "stato richiesto '{$expected->name}'.",
             );
         }
     }

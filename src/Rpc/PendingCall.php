@@ -7,17 +7,20 @@ use Amp\Future;
 
 class PendingCall
 {
+    /** @var DeferredFuture<mixed> */
     private readonly DeferredFuture $deferred;
 
     public function __construct(
-        public readonly int    $requestId,
+        public readonly int $requestId,
         public readonly string $procedure,
     ) {
-        $this->deferred = new DeferredFuture();
+        $this->deferred = new DeferredFuture;
     }
 
     /**
      * Restituisce il Future che si risolverà con il risultato RPC.
+     *
+     * @return Future<mixed>
      */
     public function getFuture(): Future
     {

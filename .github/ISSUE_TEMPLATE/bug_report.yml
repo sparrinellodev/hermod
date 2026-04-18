@@ -1,0 +1,79 @@
+name: Bug Report
+description: Segnala un bug in Hermod
+title: "[Bug]: "
+labels: ["bug", "triage"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Grazie per aver segnalato un bug! Compila il form con più dettagli possibili.
+
+  - type: input
+    id: hermod-version
+    attributes:
+      label: Versione Hermod
+      placeholder: "es: 0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: php-version
+    attributes:
+      label: Versione PHP
+      placeholder: "es: 8.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: laravel-version
+    attributes:
+      label: Versione Laravel
+      placeholder: "es: 12.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: router
+    attributes:
+      label: Router WAMP utilizzato
+      placeholder: "es: Crossbar.io 23.x"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrizione del bug
+      description: Descrizione chiara e concisa del problema.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passi per riprodurre
+      description: Come riprodurre il comportamento.
+      placeholder: |
+        1. Configura Hermod con...
+        2. Esegui...
+        3. Osserva l'errore...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento atteso
+      description: Cosa dovrebbe succedere invece?
+    validations:
+      required: true
+
+  - type: textarea
+    id: stacktrace
+    attributes:
+      label: Stack trace / Log
+      description: Se disponibile, incolla qui lo stack trace.
+      render: shell
+    validations:
+      required: false

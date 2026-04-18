@@ -8,9 +8,9 @@ use Hermod\Contracts\TransportContract;
 class WampSessionFactory
 {
     public function make(
-        TransportContract  $transport,
+        TransportContract $transport,
         SerializerContract $serializer,
-        string             $realm,
+        string $realm,
     ): WampSession {
         return new WampSession(
             transport: $transport,

@@ -7,6 +7,13 @@ use Hermod\Exceptions\SerializationException;
 
 class JsonSerializer implements SerializerContract
 {
+    /**
+     * Summary of serialize
+     *
+     * @param  array<mixed>  $message
+     *
+     * @throws SerializationException
+     */
     public function serialize(array $message): string
     {
         $encoded = json_encode($message, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -18,6 +25,13 @@ class JsonSerializer implements SerializerContract
         return $encoded;
     }
 
+    /**
+     * Summary of deserialize
+     *
+     * @return array<mixed>
+     *
+     * @throws SerializationException
+     */
     public function deserialize(string $raw): array
     {
         try {
@@ -25,11 +39,11 @@ class JsonSerializer implements SerializerContract
         } catch (\JsonException $e) {
             throw new SerializationException(
                 "Impossibile deserializzare il messaggio WAMP dal JSON: {$e->getMessage()}",
-                previous: $e
+                previous: $e,
             );
         }
 
-        if (!is_array($decoded)) {
+        if (! is_array($decoded)) {
             throw new SerializationException('Il messaggio WAMP deserializzato non è un array valido.');
         }
 

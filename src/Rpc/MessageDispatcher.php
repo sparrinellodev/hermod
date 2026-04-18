@@ -11,8 +11,8 @@ class MessageDispatcher
 {
     public function __construct(
         private readonly WampSession $session,
-        private readonly Caller      $caller,
-        private readonly Callee      $callee,
+        private readonly Caller $caller,
+        private readonly Callee $callee,
     ) {}
 
     /**
@@ -22,16 +22,16 @@ class MessageDispatcher
     {
         match ($message->type()) {
             // RPC - Caller
-            MessageType::RESULT      => $this->caller->onResult($message),
-            MessageType::ERROR       => $this->dispatchError($message),
+            MessageType::RESULT => $this->caller->onResult($message),
+            MessageType::ERROR => $this->dispatchError($message),
 
             // RPC - Callee
-            MessageType::REGISTERED   => $this->callee->onRegistered($message),
+            MessageType::REGISTERED => $this->callee->onRegistered($message),
             MessageType::UNREGISTERED => $this->callee->onUnregistered($message),
-            MessageType::INVOCATION   => $this->callee->onInvocation($message),
+            MessageType::INVOCATION => $this->callee->onInvocation($message),
 
             // Gestione GOODBYE inatteso (router che chiude la connessione)
-            MessageType::GOODBYE      => $this->handleUnexpectedGoodbye($message),
+            MessageType::GOODBYE => $this->handleUnexpectedGoodbye($message),
 
             // Messaggi non gestiti in Fase 1 — ignorati silenziosamente
             default => null,
@@ -48,9 +48,9 @@ class MessageDispatcher
         $requestType = MessageType::tryFrom((int) $message->get(1));
 
         match ($requestType) {
-            MessageType::CALL     => $this->caller->onError($message),
+            MessageType::CALL => $this->caller->onError($message),
             MessageType::REGISTER => null, // Fase 1 — gestiamo in futuro
-            default               => null,
+            default => null,
         };
     }
 
