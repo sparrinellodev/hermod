@@ -22,44 +22,51 @@ class WampServeCommand extends Command
     {
         $config = $this->resolveConfig();
 
-        $this->info('Hermod WAMP Worker');
-        $this->info('──────────────────────────────────────');
+        $this->info("Hermod WAMP Worker");
+        $this->info("──────────────────────────────────────");
         $this->info("URL:         {$config['url']}");
         $this->info("Realm:       {$config['realm']}");
         $this->info("Serializer:  {$config['serializer']}");
-        $this->info('──────────────────────────────────────');
+        $this->info("──────────────────────────────────────");
 
         $client = $factory->make($config);
 
         try {
-            $this->info('Connessione al router WAMP...');
+            $this->info("Connessione al router WAMP...");
             $client->connect();
 
             $this->info("Sessione stabilita. Session ID: {$client->getSessionId()}");
-            $this->info('Worker in ascolto. Premi Ctrl+C per uscire.');
+            $this->info("Worker in ascolto. Premi Ctrl+C per uscire.");
             $this->newLine();
 
-            // Registra le procedure definite nell'app tramite evento
             $this->registerProcedures($client);
 
-            // Avvia il loop di ascolto
             $client->listen();
+
+            return Command::SUCCESS;
         } catch (WampClientException $e) {
             $this->error("Errore WAMP: {$e->getMessage()}");
+
+            if ($e->getPrevious()) {
+                $this->line("<fg=gray>Causa: {$e->getPrevious()->getMessage()}</>");
+            }
 
             return Command::FAILURE;
         } catch (\Throwable $e) {
             $this->error("Errore inatteso: {$e->getMessage()}");
-
             return Command::FAILURE;
         } finally {
-            if ($client->isConnected()) {
-                $client->disconnect();
-                $this->info('Disconnesso dal router WAMP.');
+            // Tentiamo sempre una chiusura pulita
+            // WampClient::disconnect() è già robusto e non lancia eccezioni
+            try {
+                if ($client->isConnected()) {
+                    $client->disconnect();
+                    $this->info("Disconnesso dal router WAMP.");
+                }
+            } catch (\Throwable) {
+                // Ignoriamo — stiamo già uscendo
             }
         }
-
-        return Command::SUCCESS;
     }
 
     // -------------------------------------------------------------------------

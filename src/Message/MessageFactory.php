@@ -26,7 +26,7 @@ class MessageFactory
                         ],
                     ],
                 ],
-            ],
+            ]
         );
     }
 
@@ -34,8 +34,8 @@ class MessageFactory
     {
         return WampMessage::create(
             MessageType::GOODBYE,
-            [],
-            $reason,
+            (object) [],    // ← oggetto vuoto → {}
+            $reason
         );
     }
 
@@ -43,25 +43,19 @@ class MessageFactory
     // RPC - Caller
     // -------------------------------------------------------------------------
 
-    /**
-     * Summary of call
-     *
-     * @param  array<mixed>  $args
-     * @param  array<mixed>  $kwargs
-     */
     public static function call(
         int $requestId,
         string $procedure,
         array $args = [],
-        array $kwargs = [],
+        array $kwargs = []
     ): WampMessage {
         return WampMessage::create(
             MessageType::CALL,
             $requestId,
-            [],             // options
+            (object) [],    // ← options → {}
             $procedure,
             $args,
-            $kwargs,
+            (object) $kwargs ?: (object) []  // ← kwargs come oggetto se vuoto
         );
     }
 
@@ -74,8 +68,8 @@ class MessageFactory
         return WampMessage::create(
             MessageType::REGISTER,
             $requestId,
-            [],             // options
-            $procedure,
+            (object) [],    // ← options → {}
+            $procedure
         );
     }
 
@@ -84,47 +78,36 @@ class MessageFactory
         return WampMessage::create(
             MessageType::UNREGISTER,
             $requestId,
-            $registrationId,
+            $registrationId
         );
     }
 
-    /**
-     * Summary of yield
-     *
-     * @param  array<mixed>  $args
-     * @param  array<mixed>  $kwargs
-     */
     public static function yield(
         int $invocationRequestId,
         array $args = [],
-        array $kwargs = [],
+        array $kwargs = []
     ): WampMessage {
         return WampMessage::create(
             MessageType::YIELD,
             $invocationRequestId,
-            [],             // options
+            (object) [],    // ← options → {}
             $args,
-            $kwargs,
+            (object) $kwargs ?: (object) []
         );
     }
 
-    /**
-     * Summary of yieldError
-     *
-     * @param  array<mixed>  $args
-     */
     public static function yieldError(
         int $invocationRequestId,
         string $error,
-        array $args = [],
+        array $args = []
     ): WampMessage {
         return WampMessage::create(
             MessageType::ERROR,
             MessageType::INVOCATION->value,
             $invocationRequestId,
-            [],             // details
+            (object) [],    // ← details → {}
             $error,
-            $args,
+            $args
         );
     }
 }

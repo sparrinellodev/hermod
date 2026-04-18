@@ -55,23 +55,23 @@ class WampSession implements SessionContract
 
     public function goodbye(): void
     {
-        $this->assertState(SessionState::Established, 'goodbye');
+        // Se la sessione non è stabilita non c'è nulla da chiudere
+        if ($this->state !== SessionState::Established) {
+            $this->closeSession();
+            return;
+        }
 
         $this->state = SessionState::Closing;
 
-        // Invia GOODBYE al router
-        $this->sendMessage(MessageFactory::goodbye());
-
-        // Attende il GOODBYE di conferma dal router
         try {
-            $message = $this->receiveMessage();
+            $this->sendMessage(MessageFactory::goodbye());
 
-            if ($message->type() !== MessageType::GOODBYE) {
-                // Il router potrebbe inviare altri messaggi prima del GOODBYE
-                // per semplicità in Fase 1 lo ignoriamo e chiudiamo comunque
-            }
+            // Attendiamo il GOODBYE di conferma dal router
+            // ma ignoriamo qualsiasi errore — stiamo già chiudendo
+            $this->receiveMessage();
         } catch (\Throwable) {
-            // Se la ricezione fallisce chiudiamo comunque
+            // Il router potrebbe aver già chiuso la connessione
+            // è normale durante uno shutdown, non propaghiamo
         } finally {
             $this->closeSession();
         }
@@ -183,17 +183,22 @@ class WampSession implements SessionContract
 
     private function closeSession(): void
     {
-        $this->state = SessionState::Closed;
+        $this->state     = SessionState::Closed;
         $this->sessionId = null;
-        $this->transport->close();
+
+        try {
+            $this->transport->close();
+        } catch (\Throwable) {
+            // Ignoriamo errori in chiusura del transport
+        }
     }
 
     private function assertState(SessionState $expected, string $operation): void
     {
         if ($this->state !== $expected) {
             throw new SessionException(
-                "Impossibile eseguire '{$operation}': ".
-                    "stato attuale '{$this->state->name}', ".
+                "Impossibile eseguire '{$operation}': " .
+                    "stato attuale '{$this->state->name}', " .
                     "stato richiesto '{$expected->name}'.",
             );
         }

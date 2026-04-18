@@ -36,12 +36,17 @@ class WampClient implements WampClientContract
 
     public function disconnect(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             return;
         }
 
         $this->listening = false;
-        $this->session->goodbye();
+
+        try {
+            $this->session->goodbye();
+        } catch (\Throwable) {
+            // Se goodbye() fallisce chiudiamo comunque
+        }
     }
 
     public function isConnected(): bool
@@ -60,7 +65,25 @@ class WampClient implements WampClientContract
     {
         $this->ensureConnected();
 
-        return $this->caller->call($procedure, $args, $kwargs);
+        // 1. Invia CALL e ottieni il Future da risolvere
+        $future = $this->caller->callAsync($procedure, $args, $kwargs);
+
+        // 2. Ricevi e smista messaggi finché il nostro RESULT non arriva
+        //    receive() cede il controllo all'event loop AMPHP ad ogni chiamata
+        while (!$future->isComplete()) {
+            try {
+                $message = $this->session->receive();
+                $this->dispatcher->dispatch($message);
+            } catch (\Hermod\Exceptions\TransportException $e) {
+                throw new WampClientException(
+                    "Connessione persa durante l'attesa del risultato: {$e->getMessage()}",
+                    previous: $e
+                );
+            }
+        }
+
+        // 3. Il Future è già completo — await() ritorna immediatamente
+        return $future->await();
     }
 
     /** @param array<mixed> $args
@@ -115,20 +138,26 @@ class WampClient implements WampClientContract
 
         $this->listening = true;
 
-        while ($this->isConnected()) {
+        while ($this->listening && $this->isConnected()) {
             try {
                 $message = $this->session->receive();
                 $this->dispatcher->dispatch($message);
+            } catch (\Hermod\Exceptions\TransportException $e) {
+                // La connessione è caduta — usciamo dal loop
+                // senza tentare di inviare GOODBYE (il transport è già chiuso)
+                $this->listening = false;
+                throw new WampClientException(
+                    "Connessione persa: {$e->getMessage()}",
+                    previous: $e
+                );
             } catch (WampClientException $e) {
                 $this->listening = false;
                 throw $e;
             } catch (\Throwable $e) {
-                // In caso di errore non critico logghiamo e continuiamo
-                // In Fase 3 aggiungeremo reconnect automatico
                 $this->listening = false;
                 throw new WampClientException(
                     "Errore nel loop di ricezione: {$e->getMessage()}",
-                    previous: $e,
+                    previous: $e
                 );
             }
         }
