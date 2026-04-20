@@ -22,21 +22,21 @@ class WampServeCommand extends Command
     {
         $config = $this->resolveConfig();
 
-        $this->info("Hermod WAMP Worker");
-        $this->info("──────────────────────────────────────");
+        $this->info('Hermod WAMP Worker');
+        $this->info('──────────────────────────────────────');
         $this->info("URL:         {$config['url']}");
         $this->info("Realm:       {$config['realm']}");
         $this->info("Serializer:  {$config['serializer']}");
-        $this->info("──────────────────────────────────────");
+        $this->info('──────────────────────────────────────');
 
         $client = $factory->make($config);
 
         try {
-            $this->info("Connessione al router WAMP...");
+            $this->info('Connessione al router WAMP...');
             $client->connect();
 
             $this->info("Sessione stabilita. Session ID: {$client->getSessionId()}");
-            $this->info("Worker in ascolto. Premi Ctrl+C per uscire.");
+            $this->info('Worker in ascolto. Premi Ctrl+C per uscire.');
             $this->newLine();
 
             $this->registerProcedures($client);
@@ -54,6 +54,7 @@ class WampServeCommand extends Command
             return Command::FAILURE;
         } catch (\Throwable $e) {
             $this->error("Errore inatteso: {$e->getMessage()}");
+
             return Command::FAILURE;
         } finally {
             // Tentiamo sempre una chiusura pulita
@@ -61,7 +62,7 @@ class WampServeCommand extends Command
             try {
                 if ($client->isConnected()) {
                     $client->disconnect();
-                    $this->info("Disconnesso dal router WAMP.");
+                    $this->info('Disconnesso dal router WAMP.');
                 }
             } catch (\Throwable) {
                 // Ignoriamo — stiamo già uscendo

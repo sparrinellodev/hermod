@@ -134,7 +134,7 @@ class WebSocketTransport implements TransportContract
         return new WebsocketHandshake(
             $this->url,
             // Negozia il subprotocol WAMP corretto (json/msgpack/cbor)
-            ['Sec-WebSocket-Protocol' => $this->serializer->subprotocol()]
+            ['Sec-WebSocket-Protocol' => $this->serializer->subprotocol()],
         );
     }
 

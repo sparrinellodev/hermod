@@ -4,7 +4,11 @@ namespace Hermod\Client;
 
 use Amp\Future;
 use Hermod\Contracts\WampClientContract;
+use Hermod\Exceptions\TransportException;
 use Hermod\Exceptions\WampClientException;
+use Hermod\PubSub\Publisher;
+use Hermod\PubSub\Subscriber;
+use Hermod\PubSub\Subscription;
 use Hermod\Rpc\Callee;
 use Hermod\Rpc\Caller;
 use Hermod\Rpc\MessageDispatcher;
@@ -19,6 +23,8 @@ class WampClient implements WampClientContract
         private readonly Caller $caller,
         private readonly Callee $callee,
         private readonly MessageDispatcher $dispatcher,
+        private readonly Publisher $publisher,
+        private readonly Subscriber $subscriber,
     ) {}
 
     // -------------------------------------------------------------------------
@@ -36,7 +42,7 @@ class WampClient implements WampClientContract
 
     public function disconnect(): void
     {
-        if (!$this->isConnected()) {
+        if (! $this->isConnected()) {
             return;
         }
 
@@ -45,7 +51,6 @@ class WampClient implements WampClientContract
         try {
             $this->session->goodbye();
         } catch (\Throwable) {
-            // Se goodbye() fallisce chiudiamo comunque
         }
     }
 
@@ -65,24 +70,20 @@ class WampClient implements WampClientContract
     {
         $this->ensureConnected();
 
-        // 1. Invia CALL e ottieni il Future da risolvere
         $future = $this->caller->callAsync($procedure, $args, $kwargs);
 
-        // 2. Ricevi e smista messaggi finché il nostro RESULT non arriva
-        //    receive() cede il controllo all'event loop AMPHP ad ogni chiamata
-        while (!$future->isComplete()) {
+        while (! $future->isComplete()) {
             try {
                 $message = $this->session->receive();
                 $this->dispatcher->dispatch($message);
-            } catch (\Hermod\Exceptions\TransportException $e) {
+            } catch (TransportException $e) {
                 throw new WampClientException(
                     "Connessione persa durante l'attesa del risultato: {$e->getMessage()}",
-                    previous: $e
+                    previous: $e,
                 );
             }
         }
 
-        // 3. Il Future è già completo — await() ritorna immediatamente
         return $future->await();
     }
 
@@ -94,26 +95,21 @@ class WampClient implements WampClientContract
     {
         $this->ensureConnected();
 
-        // Avvolgiamo tutto in una fiber AMPHP
-        // che gestisce autonomamente il loop di ricezione
         return \Amp\async(function () use ($procedure, $args, $kwargs): mixed {
-            // 1. Invia CALL e ottieni il Future interno
             $future = $this->caller->callAsync($procedure, $args, $kwargs);
 
-            // 2. Leggi messaggi finché il RESULT non arriva
-            while (!$future->isComplete()) {
+            while (! $future->isComplete()) {
                 try {
                     $message = $this->session->receive();
                     $this->dispatcher->dispatch($message);
-                } catch (\Hermod\Exceptions\TransportException $e) {
+                } catch (TransportException $e) {
                     throw new WampClientException(
                         "Connessione persa durante l'attesa del risultato: {$e->getMessage()}",
-                        previous: $e
+                        previous: $e,
                     );
                 }
             }
 
-            // 3. Future già completo — ritorna immediatamente
             return $future->await();
         });
     }
@@ -142,6 +138,66 @@ class WampClient implements WampClientContract
     }
 
     // -------------------------------------------------------------------------
+    // PublisherContract
+    // -------------------------------------------------------------------------
+    public function publish(string $topic, array $args = [], array $kwargs = []): void
+    {
+        $this->ensureConnected();
+        $this->publisher->publish($topic, $args, $kwargs);
+    }
+
+    public function publishWithAck(string $topic, array $args = [], array $kwargs = []): Future
+    {
+        $this->ensureConnected();
+
+        return \Amp\async(function () use ($topic, $args, $kwargs): int {
+            $future = $this->publisher->publishWithAck($topic, $args, $kwargs);
+
+            while (! $future->isComplete()) {
+                try {
+                    $message = $this->session->receive();
+                    $this->dispatcher->dispatch($message);
+                } catch (TransportException $e) {
+                    throw new WampClientException(
+                        "Connessione persa durante l'attesa di PUBLISHED: {$e->getMessage()}",
+                        previous: $e,
+                    );
+                }
+            }
+
+            return $future->await();
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // SubscriberContract
+    // -------------------------------------------------------------------------
+
+    public function subscribe(string $topic, callable $handler): Subscription
+    {
+        $this->ensureConnected();
+
+        return $this->subscriber->subscribe($topic, $handler);
+    }
+
+    public function unsubscribe(string $topic): void
+    {
+        $this->ensureConnected();
+        $this->subscriber->unsubscribe($topic);
+    }
+
+    public function unsubscribeById(Subscription $subscription): void
+    {
+        $this->ensureConnected();
+        $this->subscriber->unsubscribeById($subscription);
+    }
+
+    public function getSubscriptions(): array
+    {
+        return $this->subscriber->getSubscriptions();
+    }
+
+    // -------------------------------------------------------------------------
     // Message Loop
     // -------------------------------------------------------------------------
 
@@ -163,13 +219,13 @@ class WampClient implements WampClientContract
             try {
                 $message = $this->session->receive();
                 $this->dispatcher->dispatch($message);
-            } catch (\Hermod\Exceptions\TransportException $e) {
+            } catch (TransportException $e) {
                 // La connessione è caduta — usciamo dal loop
                 // senza tentare di inviare GOODBYE (il transport è già chiuso)
                 $this->listening = false;
                 throw new WampClientException(
                     "Connessione persa: {$e->getMessage()}",
-                    previous: $e
+                    previous: $e,
                 );
             } catch (WampClientException $e) {
                 $this->listening = false;
@@ -178,7 +234,7 @@ class WampClient implements WampClientContract
                 $this->listening = false;
                 throw new WampClientException(
                     "Errore nel loop di ricezione: {$e->getMessage()}",
-                    previous: $e
+                    previous: $e,
                 );
             }
         }

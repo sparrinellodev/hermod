@@ -26,7 +26,7 @@ class MessageFactory
                         ],
                     ],
                 ],
-            ]
+            ],
         );
     }
 
@@ -35,7 +35,7 @@ class MessageFactory
         return WampMessage::create(
             MessageType::GOODBYE,
             (object) [],    // ← oggetto vuoto → {}
-            $reason
+            $reason,
         );
     }
 
@@ -47,15 +47,15 @@ class MessageFactory
         int $requestId,
         string $procedure,
         array $args = [],
-        array $kwargs = []
+        array $kwargs = [],
     ): WampMessage {
         return WampMessage::create(
             MessageType::CALL,
             $requestId,
-            (object) [],    // ← options → {}
+            (object) [],
             $procedure,
             $args,
-            (object) $kwargs ?: (object) []  // ← kwargs come oggetto se vuoto
+            (object) $kwargs ?: (object) [],
         );
     }
 
@@ -69,7 +69,7 @@ class MessageFactory
             MessageType::REGISTER,
             $requestId,
             (object) [],    // ← options → {}
-            $procedure
+            $procedure,
         );
     }
 
@@ -78,28 +78,28 @@ class MessageFactory
         return WampMessage::create(
             MessageType::UNREGISTER,
             $requestId,
-            $registrationId
+            $registrationId,
         );
     }
 
     public static function yield(
         int $invocationRequestId,
         array $args = [],
-        array $kwargs = []
+        array $kwargs = [],
     ): WampMessage {
         return WampMessage::create(
             MessageType::YIELD,
             $invocationRequestId,
             (object) [],    // ← options → {}
             $args,
-            (object) $kwargs ?: (object) []
+            (object) $kwargs ?: (object) [],
         );
     }
 
     public static function yieldError(
         int $invocationRequestId,
         string $error,
-        array $args = []
+        array $args = [],
     ): WampMessage {
         return WampMessage::create(
             MessageType::ERROR,
@@ -107,7 +107,55 @@ class MessageFactory
             $invocationRequestId,
             (object) [],    // ← details → {}
             $error,
-            $args
+            $args,
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // PubSub - Publisher
+    // -------------------------------------------------------------------------
+
+    public static function publish(
+        int $requestId,
+        string $topic,
+        array $args = [],
+        array $kwargs = [],
+        bool $acknowledge = false,
+    ): WampMessage {
+        $options = $acknowledge
+            ? ['acknowledge' => true]
+            : (object) [];
+
+        return WampMessage::create(
+            MessageType::PUBLISH,
+            $requestId,
+            $options,
+            $topic,
+            $args,
+            (object) $kwargs ?: (object) [],
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // PubSub - Subscriber
+    // -------------------------------------------------------------------------
+
+    public static function subscribe(int $requestId, string $topic): WampMessage
+    {
+        return WampMessage::create(
+            MessageType::SUBSCRIBE,
+            $requestId,
+            (object) [],    // options → {}
+            $topic,
+        );
+    }
+
+    public static function unsubscribe(int $requestId, int $subscriptionId): WampMessage
+    {
+        return WampMessage::create(
+            MessageType::UNSUBSCRIBE,
+            $requestId,
+            $subscriptionId,
         );
     }
 }

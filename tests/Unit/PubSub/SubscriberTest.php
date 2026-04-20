@@ -1,0 +1,277 @@
+<?php
+
+use Hermod\Exceptions\PubSubException;
+use Hermod\Laravel\Events\WampEventReceived;
+use Hermod\Message\MessageType;
+use Hermod\Message\WampMessage;
+use Hermod\PubSub\PendingSubscriptionRegistry;
+use Hermod\PubSub\Subscriber;
+use Hermod\PubSub\Subscription;
+use Hermod\Rpc\RequestIdGenerator;
+use Hermod\Session\WampSession;
+use Hermod\Tests\TestCase;
+use Illuminate\Support\Facades\Event;
+
+uses(TestCase::class);
+
+describe('Subscriber', function () {
+
+    beforeEach(function () {
+        $this->session = Mockery::mock(WampSession::class);
+        $this->registry = new PendingSubscriptionRegistry;
+        $this->subscriber = new Subscriber(
+            $this->session,
+            new RequestIdGenerator,
+            $this->registry,
+        );
+    });
+
+    afterEach(fn () => Mockery::close());
+
+    // -------------------------------------------------------------------------
+    // subscribe()
+    // -------------------------------------------------------------------------
+
+    describe('subscribe()', function () {
+
+        it('invia SUBSCRIBE al router', function () {
+            $this->session
+                ->shouldReceive('send')
+                ->once()
+                ->withArgs(function (WampMessage $message) {
+                    return $message->type() === MessageType::SUBSCRIBE
+                        && $message->get(3) === 'com.myapp.notifiche';
+                });
+
+            $this->subscriber->subscribe('com.myapp.notifiche', fn () => null);
+        });
+
+        it('restituisce un oggetto Subscription', function () {
+            $this->session->shouldReceive('send')->once();
+
+            $subscription = $this->subscriber->subscribe('com.myapp.notifiche', fn () => null);
+
+            expect($subscription)->toBeInstanceOf(Subscription::class)
+                ->and($subscription->topic)->toBe('com.myapp.notifiche');
+        });
+
+        it('lancia eccezione se già sottoscritto allo stesso topic', function () {
+            $this->session->shouldReceive('send')->once();
+
+            $this->subscriber->subscribe('com.myapp.notifiche', fn () => null);
+
+            expect(fn () => $this->subscriber->subscribe('com.myapp.notifiche', fn () => null))
+                ->toThrow(PubSubException::class, 'Già sottoscritto');
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // onSubscribed()
+    // -------------------------------------------------------------------------
+
+    describe('onSubscribed()', function () {
+
+        it('conferma la sottoscrizione quando arriva SUBSCRIBED', function () {
+            $this->session->shouldReceive('send')->once();
+
+            $this->subscriber->subscribe('com.myapp.test', fn () => null);
+
+            // Recuperiamo il requestId
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+            $requestId = array_key_first($pending);
+
+            // Simuliamo SUBSCRIBED [33, requestId, subscriptionId]
+            $subscribed = WampMessage::fromArray([33, $requestId, 7777]);
+            $this->subscriber->onSubscribed($subscribed);
+
+            $found = $this->registry->findBySubscriptionId(7777);
+            expect($found)->toBeInstanceOf(Subscription::class)
+                ->and($found->subscriptionId)->toBe(7777)
+                ->and($found->topic)->toBe('com.myapp.test');
+        });
+
+        it('ignora silenziosamente SUBSCRIBED per requestId sconosciuto', function () {
+            $unknown = WampMessage::fromArray([33, 99999, 1234]);
+            $this->subscriber->onSubscribed($unknown);
+
+            expect(true)->toBeTrue();
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // onEvent()
+    // -------------------------------------------------------------------------
+
+    describe('onEvent()', function () {
+
+        it('esegue l\'handler quando arriva un EVENT', function () {
+            $this->session->shouldReceive('send')->once();
+
+            $received = [];
+            $this->subscriber->subscribe('com.myapp.test', function (array $args) use (&$received) {
+                $received = $args;
+            });
+
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+            $requestId = array_key_first($pending);
+
+            $subscribed = WampMessage::fromArray([33, $requestId, 8888]);
+            $this->subscriber->onSubscribed($subscribed);
+
+            // Simuliamo EVENT [36, subscriptionId, publicationId, {}, args]
+            $event = WampMessage::fromArray([36, 8888, 1111, [], ['ciao', 'mondo']]);
+            $this->subscriber->onEvent($event);
+
+            expect($received)->toBe(['ciao', 'mondo']);
+        });
+
+        it('dispatcha un evento Laravel WampEventReceived', function () {
+            Event::fake();
+
+            $this->session->shouldReceive('send')->once();
+
+            $this->subscriber->subscribe('com.myapp.test', fn () => null);
+
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+            $requestId = array_key_first($pending);
+
+            $subscribed = WampMessage::fromArray([33, $requestId, 9999]);
+            $this->subscriber->onSubscribed($subscribed);
+
+            $event = WampMessage::fromArray([36, 9999, 2222, [], ['dato' => 'valore']]);
+            $this->subscriber->onEvent($event);
+
+            Event::assertDispatched(WampEventReceived::class, function (WampEventReceived $e) {
+                return $e->topic === 'com.myapp.test'
+                    && $e->subscriptionId === 9999
+                    && $e->publicationId === 2222
+                    && $e->args === ['dato' => 'valore'];
+            });
+        });
+
+        it('ignora EVENT per subscriptionId sconosciuto', function () {
+            $unknown = WampMessage::fromArray([36, 99999, 1111, [], []]);
+            $this->subscriber->onEvent($unknown);
+
+            expect(true)->toBeTrue();
+        });
+
+        it('non blocca il loop se l\'handler lancia un\'eccezione', function () {
+            $this->session->shouldReceive('send')->once();
+
+            $this->subscriber->subscribe('com.myapp.test', function () {
+                throw new RuntimeException('Handler fallito');
+            });
+
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+            $requestId = array_key_first($pending);
+
+            $subscribed = WampMessage::fromArray([33, $requestId, 1234]);
+            $this->subscriber->onSubscribed($subscribed);
+
+            // Non deve propagare l'eccezione
+            $event = WampMessage::fromArray([36, 1234, 5678, [], []]);
+            $this->subscriber->onEvent($event);
+
+            expect(true)->toBeTrue();
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // unsubscribe()
+    // -------------------------------------------------------------------------
+
+    describe('unsubscribe()', function () {
+
+        it('invia UNSUBSCRIBE al router', function () {
+            $this->session->shouldReceive('send')->twice(); // SUBSCRIBE + UNSUBSCRIBE
+
+            $this->subscriber->subscribe('com.myapp.test', fn () => null);
+
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+            $requestId = array_key_first($pending);
+
+            $subscribed = WampMessage::fromArray([33, $requestId, 4444]);
+            $this->subscriber->onSubscribed($subscribed);
+
+            $this->session
+                ->shouldReceive('send')
+                ->withArgs(function (WampMessage $message) {
+                    return $message->type() === MessageType::UNSUBSCRIBE;
+                });
+
+            $this->subscriber->unsubscribe('com.myapp.test');
+        });
+
+        it('lancia eccezione se il topic non è sottoscritto', function () {
+            expect(fn () => $this->subscriber->unsubscribe('com.myapp.inesistente'))
+                ->toThrow(PubSubException::class, 'Nessuna sottoscrizione attiva');
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // onUnsubscribed()
+    // -------------------------------------------------------------------------
+
+    describe('onUnsubscribed()', function () {
+
+        it('rimuove la sottoscrizione quando arriva UNSUBSCRIBED', function () {
+            $this->session->shouldReceive('send')->twice();
+
+            $this->subscriber->subscribe('com.myapp.test', fn () => null);
+
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+            $requestId = array_key_first($pending);
+
+            $subscribed = WampMessage::fromArray([33, $requestId, 5555]);
+            $this->subscriber->onSubscribed($subscribed);
+
+            $this->subscriber->unsubscribe('com.myapp.test');
+
+            $pendingUnsub = (new ReflectionProperty($this->registry, 'pendingUnsubscribes'))
+                ->getValue($this->registry);
+            $unsubRequestId = array_key_first($pendingUnsub);
+
+            // Simuliamo UNSUBSCRIBED [35, requestId]
+            $unsubscribed = WampMessage::fromArray([35, $unsubRequestId]);
+            $this->subscriber->onUnsubscribed($unsubscribed);
+
+            expect($this->registry->findByTopic('com.myapp.test'))->toBeNull()
+                ->and($this->registry->isTopicSubscribed('com.myapp.test'))->toBeFalse();
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // getSubscriptions()
+    // -------------------------------------------------------------------------
+
+    describe('getSubscriptions()', function () {
+
+        it('restituisce tutte le sottoscrizioni attive', function () {
+            $this->session->shouldReceive('send')->twice();
+
+            $this->subscriber->subscribe('com.myapp.uno', fn () => null);
+            $this->subscriber->subscribe('com.myapp.due', fn () => null);
+
+            $pending = (new ReflectionProperty($this->registry, 'pending'))
+                ->getValue($this->registry);
+
+            $ids = array_keys($pending);
+
+            $this->subscriber->onSubscribed(WampMessage::fromArray([33, $ids[0], 101]));
+            $this->subscriber->onSubscribed(WampMessage::fromArray([33, $ids[1], 102]));
+
+            $subscriptions = $this->subscriber->getSubscriptions();
+
+            expect($subscriptions)
+                ->toHaveCount(2)
+                ->toHaveKeys(['com.myapp.uno', 'com.myapp.due']);
+        });
+    });
+});

@@ -2,6 +2,9 @@
 
 namespace Hermod\Client;
 
+use Hermod\PubSub\PendingSubscriptionRegistry;
+use Hermod\PubSub\Publisher;
+use Hermod\PubSub\Subscriber;
 use Hermod\Rpc\Callee;
 use Hermod\Rpc\Caller;
 use Hermod\Rpc\MessageDispatcher;
@@ -46,14 +49,27 @@ class WampClientFactory
         $caller = new Caller($session, $registry);
         $callee = new Callee($session, $idGenerator);
 
-        // 5. Dispatcher
-        $dispatcher = new MessageDispatcher($session, $caller, $callee);
+        // 5. PubSub Layer
+        $subRegistry = new PendingSubscriptionRegistry;
+        $publisher = new Publisher($session, $idGenerator);
+        $subscriber = new Subscriber($session, $idGenerator, $subRegistry);
 
-        // 6. Client
+        // 6. Dispatcher
+        $dispatcher = new MessageDispatcher(
+            session: $session,
+            caller: $caller,
+            callee: $callee,
+            publisher: $publisher,
+            subscriber: $subscriber,
+        );
+
+        // 7. Client
         return new WampClient(
             session: $session,
             caller: $caller,
             callee: $callee,
+            publisher: $publisher,
+            subscriber: $subscriber,
             dispatcher: $dispatcher,
         );
     }

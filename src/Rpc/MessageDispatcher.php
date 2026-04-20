@@ -5,6 +5,8 @@ namespace Hermod\Rpc;
 use Hermod\Exceptions\WampProtocolException;
 use Hermod\Message\MessageType;
 use Hermod\Message\WampMessage;
+use Hermod\PubSub\Publisher;
+use Hermod\PubSub\Subscriber;
 use Hermod\Session\WampSession;
 
 class MessageDispatcher
@@ -13,6 +15,8 @@ class MessageDispatcher
         private readonly WampSession $session,
         private readonly Caller $caller,
         private readonly Callee $callee,
+        private readonly Publisher $publisher,
+        private readonly Subscriber $subscriber,
     ) {}
 
     /**
@@ -29,6 +33,14 @@ class MessageDispatcher
             MessageType::REGISTERED => $this->callee->onRegistered($message),
             MessageType::UNREGISTERED => $this->callee->onUnregistered($message),
             MessageType::INVOCATION => $this->callee->onInvocation($message),
+
+            // PubSub - Publisher
+            MessageType::PUBLISHED => $this->publisher->onPublished($message),
+
+            // PubSub - Subscriber
+            MessageType::SUBSCRIBED => $this->subscriber->onSubscribed($message),
+            MessageType::UNSUBSCRIBED => $this->subscriber->onUnsubscribed($message),
+            MessageType::EVENT => $this->subscriber->onEvent($message),
 
             // Gestione GOODBYE inatteso (router che chiude la connessione)
             MessageType::GOODBYE => $this->handleUnexpectedGoodbye($message),
@@ -49,7 +61,9 @@ class MessageDispatcher
 
         match ($requestType) {
             MessageType::CALL => $this->caller->onError($message),
-            MessageType::REGISTER => null, // Fase 1 — gestiamo in futuro
+            MessageType::REGISTER => null,
+            MessageType::PUBLISH => $this->publisher->onError($message),
+            MessageType::SUBSCRIBE => null,
             default => null,
         };
     }

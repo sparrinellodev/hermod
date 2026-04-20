@@ -58,6 +58,7 @@ class WampSession implements SessionContract
         // Se la sessione non è stabilita non c'è nulla da chiudere
         if ($this->state !== SessionState::Established) {
             $this->closeSession();
+
             return;
         }
 
@@ -183,7 +184,7 @@ class WampSession implements SessionContract
 
     private function closeSession(): void
     {
-        $this->state     = SessionState::Closed;
+        $this->state = SessionState::Closed;
         $this->sessionId = null;
 
         try {
@@ -197,8 +198,8 @@ class WampSession implements SessionContract
     {
         if ($this->state !== $expected) {
             throw new SessionException(
-                "Impossibile eseguire '{$operation}': " .
-                    "stato attuale '{$this->state->name}', " .
+                "Impossibile eseguire '{$operation}': ".
+                    "stato attuale '{$this->state->name}', ".
                     "stato richiesto '{$expected->name}'.",
             );
         }

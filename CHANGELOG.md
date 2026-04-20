@@ -7,6 +7,39 @@ and the project adopts [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-04-20
+
+### Added
+
+- Complete PubSub Layer:
+- `Publisher` with `publish()` (fire and forget) and `publishWithAck()` (with confirmation) support
+- `Subscriber` with registration handler and `subscribe()`/`unsubscribe()` management
+- `Subscription` — object representing an active subscription
+- `PendingSubscriptionRegistry` — management of subscriptions awaiting confirmation
+- New contracts:
+- `PublisherContract`
+- `SubscriberContract`
+- Laravel `WampEventReceived` event — automatically dispatched with each WAMP EVENT received
+- New methods in `MessageFactory`: `publish()`, `subscribe()`, `unsubscribe()`
+- `MessageDispatcher` updated to handle `PUBLISHED`, `SUBSCRIBED`, `UNSUBSCRIBED`, `EVENT`
+- `WampClient` and `WampClientFactory` updated with The PubSub Layer
+- `WampClientContract` now extends `PublisherContract` and `SubscriberContract`
+- `Wamp` facade updated with new PubSub methods
+- Comprehensive unit testing for all PubSub components
+
+### Fixed
+
+- `MessageFactory` — the `options`, `details`, and `kwargs` fields now correctly serialize
+  as `{}` instead of `[]` when empty (critical fix for WAMP compatibility)
+- `WebSocketTransport::buildHandshake()` — the subprotocol is now correctly passed
+  as the `Sec-WebSocket-Protocol` HTTP header
+- `WampSession::goodbye()` — correctly handles the case where
+  the transport is already closed before the call
+- `WampClient::listen()` — correctly distinguishes between clean router
+  closure (GOODBYE) and connection loss
+- `WampClient::call()` and `callAsync()` — internally start the message reception loop
+  to resolve the Future even outside of an active AMPHP event loop
+
 ## [0.1.0] - 2026-04-18
 
 ### Added

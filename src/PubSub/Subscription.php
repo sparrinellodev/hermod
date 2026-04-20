@@ -1,14 +1,14 @@
 <?php
 
-namespace Hermod\Rpc;
+namespace Hermod\PubSub;
 
-class Registration
+class Subscription
 {
     public readonly mixed $handler;
 
     public function __construct(
-        public readonly int $registrationId,
-        public readonly string $procedure,
+        public readonly int $subscriptionId,
+        public readonly string $topic,
         callable $handler,
     ) {
         $this->handler = $handler;

@@ -44,7 +44,8 @@ describe('MessageFactory', function () {
 
             expect($message->type())->toBe(MessageType::CALL)
                 ->and($message->get(1))->toBe(42)
-                ->and($message->get(2))->toBe([])
+                ->and($message->get(2))->toBeObject()
+                ->and((array) $message->get(2))->toBeEmpty()
                 ->and($message->get(3))->toBe('com.myapp.somma')
                 ->and($message->get(4))->toBe([3, 5]);
         });
@@ -52,7 +53,7 @@ describe('MessageFactory', function () {
         it('include kwargs quando forniti', function () {
             $message = MessageFactory::call(1, 'com.myapp.test', [], ['nome' => 'Mario']);
 
-            expect($message->get(5))->toBe(['nome' => 'Mario']);
+            expect($message->get(5))->toEqual((object) ['nome' => 'Mario']);
         });
     });
 
