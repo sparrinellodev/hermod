@@ -37,7 +37,7 @@ describe('MessageFactory — PubSub', function () {
                 acknowledge: true,
             );
 
-            expect($message->get(2))->toBe(['acknowledge' => true]);
+            expect($message->get(2))->toEqual((object) ['acknowledge' => true]);
         });
 
         it('include kwargs nel messaggio', function () {
@@ -50,6 +50,31 @@ describe('MessageFactory — PubSub', function () {
 
             // kwargs come stdClass quando non vuoto
             expect($message->get(5))->not->toBeEmpty();
+        });
+
+        it('sposta args associativo in kwargs automaticamente', function () {
+            $message = MessageFactory::publish(
+                requestId: 1,
+                topic: 'com.myapp.test',
+                args: ['messaggio' => 'ciao!'],
+            );
+
+            // args deve essere lista vuota
+            expect($message->get(4))->toBe([]);
+
+            // kwargs deve contenere il dato associativo
+            $kwargs = (array) $message->get(5);
+            expect($kwargs)->toBe(['messaggio' => 'ciao!']);
+        });
+
+        it('mantiene lista posizionale in args', function () {
+            $message = MessageFactory::publish(
+                requestId: 1,
+                topic: 'com.myapp.test',
+                args: [1, 2, 3],
+            );
+
+            expect($message->get(4))->toBe([1, 2, 3]);
         });
     });
 

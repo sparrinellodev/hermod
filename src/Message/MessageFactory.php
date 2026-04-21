@@ -49,13 +49,15 @@ class MessageFactory
         array $args = [],
         array $kwargs = [],
     ): WampMessage {
+        [$normalizedArgs, $normalizedKwargs] = self::normalizeArgs($args, $kwargs);
+
         return WampMessage::create(
             MessageType::CALL,
             $requestId,
             (object) [],
             $procedure,
-            $args,
-            (object) $kwargs ?: (object) [],
+            $normalizedArgs,
+            $normalizedKwargs,
         );
     }
 
@@ -68,7 +70,7 @@ class MessageFactory
         return WampMessage::create(
             MessageType::REGISTER,
             $requestId,
-            (object) [],    // ← options → {}
+            (object) [],
             $procedure,
         );
     }
@@ -87,12 +89,14 @@ class MessageFactory
         array $args = [],
         array $kwargs = [],
     ): WampMessage {
+        [$normalizedArgs, $normalizedKwargs] = self::normalizeArgs($args, $kwargs);
+
         return WampMessage::create(
             MessageType::YIELD,
             $invocationRequestId,
-            (object) [],    // ← options → {}
-            $args,
-            (object) $kwargs ?: (object) [],
+            (object) [],
+            $normalizedArgs,
+            $normalizedKwargs,
         );
     }
 
@@ -105,7 +109,7 @@ class MessageFactory
             MessageType::ERROR,
             MessageType::INVOCATION->value,
             $invocationRequestId,
-            (object) [],    // ← details → {}
+            (object) [],
             $error,
             $args,
         );
@@ -122,8 +126,10 @@ class MessageFactory
         array $kwargs = [],
         bool $acknowledge = false,
     ): WampMessage {
+        [$normalizedArgs, $normalizedKwargs] = self::normalizeArgs($args, $kwargs);
+
         $options = $acknowledge
-            ? ['acknowledge' => true]
+            ? (object) ['acknowledge' => true]
             : (object) [];
 
         return WampMessage::create(
@@ -131,8 +137,8 @@ class MessageFactory
             $requestId,
             $options,
             $topic,
-            $args,
-            (object) $kwargs ?: (object) [],
+            $normalizedArgs,
+            $normalizedKwargs,
         );
     }
 
@@ -145,7 +151,7 @@ class MessageFactory
         return WampMessage::create(
             MessageType::SUBSCRIBE,
             $requestId,
-            (object) [],    // options → {}
+            (object) [],
             $topic,
         );
     }
@@ -157,5 +163,20 @@ class MessageFactory
             $requestId,
             $subscriptionId,
         );
+    }
+
+    private static function normalizeArgs(array $args, array $kwargs): array
+    {
+        if (! empty($args) && ! array_is_list($args)) {
+            $kwargs = array_merge($kwargs, $args);
+            $args = [];
+        }
+
+        // kwargs come stdClass per garantire {} anche se vuoto
+        $normalizedKwargs = empty($kwargs)
+            ? (object) []
+            : (object) $kwargs;
+
+        return [$args, $normalizedKwargs];
     }
 }

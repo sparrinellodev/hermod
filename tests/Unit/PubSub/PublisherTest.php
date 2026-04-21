@@ -15,13 +15,25 @@ describe('Publisher', function () {
         $this->publisher = new Publisher($this->session, new RequestIdGenerator);
     });
 
-    afterEach(fn () => Mockery::close());
+    afterEach(fn() => Mockery::close());
 
     // -------------------------------------------------------------------------
     // publish()
     // -------------------------------------------------------------------------
 
     describe('publish()', function () {
+
+        it('invia PUBLISH senza opzione acknowledge', function () {
+            $this->session
+                ->shouldReceive('send')
+                ->once()
+                ->withArgs(function (WampMessage $message) {
+                    $options = $message->get(2);
+                    return ! property_exists($options, 'acknowledge');
+                });
+
+            $this->publisher->publish('com.myapp.test', []);
+        });
 
         it('invia un messaggio PUBLISH senza acknowledge', function () {
             $this->session
@@ -30,24 +42,11 @@ describe('Publisher', function () {
                 ->withArgs(function (WampMessage $message) {
                     return $message->type() === MessageType::PUBLISH
                         && $message->get(3) === 'com.myapp.notifiche'
-                        && $message->get(4) === ['dato' => 'valore'];
+                        && $message->get(4) === []
+                        && $message->get(5)->dato === 'valore';
                 });
 
             $this->publisher->publish('com.myapp.notifiche', ['dato' => 'valore']);
-        });
-
-        it('invia PUBLISH senza opzione acknowledge', function () {
-            $this->session
-                ->shouldReceive('send')
-                ->once()
-                ->withArgs(function (WampMessage $message) {
-                    // options non deve contenere acknowledge=true
-                    $options = $message->get(2);
-
-                    return ! property_exists($options, 'acknowledge');
-                });
-
-            $this->publisher->publish('com.myapp.test', []);
         });
 
         it('invia PUBLISH con args e kwargs', function () {
@@ -83,7 +82,7 @@ describe('Publisher', function () {
                 ->withArgs(function (WampMessage $message) {
                     $options = $message->get(2);
 
-                    return is_array($options) && ($options['acknowledge'] ?? false) === true;
+                    return ($options->acknowledge ?? false) === true;
                 });
 
             $this->publisher->publishWithAck('com.myapp.test', []);
@@ -128,7 +127,7 @@ describe('Publisher', function () {
             $error = WampMessage::fromArray([8, 16, $requestId, [], 'wamp.error.not_authorized']);
             $this->publisher->onError($error);
 
-            expect(fn () => $future->await())
+            expect(fn() => $future->await())
                 ->toThrow(PubSubException::class);
         });
 
