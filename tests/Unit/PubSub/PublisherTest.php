@@ -15,7 +15,7 @@ describe('Publisher', function () {
         $this->publisher = new Publisher($this->session, new RequestIdGenerator);
     });
 
-    afterEach(fn() => Mockery::close());
+    afterEach(fn () => Mockery::close());
 
     // -------------------------------------------------------------------------
     // publish()
@@ -29,6 +29,7 @@ describe('Publisher', function () {
                 ->once()
                 ->withArgs(function (WampMessage $message) {
                     $options = $message->get(2);
+
                     return ! property_exists($options, 'acknowledge');
                 });
 
@@ -127,7 +128,7 @@ describe('Publisher', function () {
             $error = WampMessage::fromArray([8, 16, $requestId, [], 'wamp.error.not_authorized']);
             $this->publisher->onError($error);
 
-            expect(fn() => $future->await())
+            expect(fn () => $future->await())
                 ->toThrow(PubSubException::class);
         });
 

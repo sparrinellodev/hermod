@@ -33,4 +33,8 @@ enum MessageType: int
     case UNREGISTERED = 67;
     case INVOCATION = 68;
     case YIELD = 70;
+
+    // Authentication
+    case CHALLENGE = 4;
+    case AUTHENTICATE = 5;
 }

@@ -1,5 +1,6 @@
 <?php
 
+use Hermod\Auth\AnonymousAuthenticator;
 use Hermod\Contracts\TransportContract;
 use Hermod\Exceptions\SessionException;
 use Hermod\Exceptions\WampProtocolException;
@@ -14,7 +15,13 @@ describe('WampSession', function () {
     beforeEach(function () {
         $this->transport = Mockery::mock(TransportContract::class);
         $this->serializer = new JsonSerializer;
-        $this->session = new WampSession($this->transport, $this->serializer, 'realm1');
+        $this->authenticator = new AnonymousAuthenticator;
+        $this->session = new WampSession(
+            $this->transport,
+            $this->serializer,
+            'realm1',
+            $this->authenticator,   // ← aggiunto
+        );
     });
 
     afterEach(fn () => Mockery::close());
@@ -49,7 +56,7 @@ describe('WampSession', function () {
         $this->transport->shouldReceive('close')->once();
 
         expect(fn () => $this->session->hello())
-            ->toThrow(WampProtocolException::class, 'wamp.error.no_such_realm');
+            ->toThrow(WampProtocolException::class, 'no_such_realm');
     });
 
     it('lancia SessionException se hello() viene chiamato due volte', function () {
@@ -66,7 +73,6 @@ describe('WampSession', function () {
     });
 
     it('chiude correttamente la sessione con goodbye()', function () {
-        // Setup hello
         $welcome = json_encode([2, 111, []]);
         $goodbye = json_encode([6, [], 'wamp.close.normal']);
 

@@ -2,6 +2,7 @@
 
 namespace Hermod\Laravel;
 
+use Hermod\Auth\AuthenticatorFactory;
 use Hermod\Client\WampClient;
 use Hermod\Client\WampClientFactory;
 use Hermod\Laravel\Console\WampCallCommand;
@@ -71,11 +72,16 @@ class WampServiceProvider extends ServiceProvider
             return new WampSessionFactory;
         });
 
+        $this->app->singleton(AuthenticatorFactory::class, function () {
+            return new AuthenticatorFactory;
+        });
+
         $this->app->singleton(WampClientFactory::class, function ($app) {
             return new WampClientFactory(
                 serializerFactory: $app->make(SerializerFactory::class),
                 transportFactory: $app->make(WebSocketTransportFactory::class),
                 sessionFactory: $app->make(WampSessionFactory::class),
+                authenticatorFactory: $app->make(AuthenticatorFactory::class),
             );
         });
     }

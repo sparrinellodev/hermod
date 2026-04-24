@@ -179,4 +179,52 @@ class MessageFactory
 
         return [$args, $normalizedKwargs];
     }
+
+    // -------------------------------------------------------------------------
+    // Auth
+    // -------------------------------------------------------------------------
+
+    public static function helloWithAuth(
+        string $realm,
+        string $authMethod,
+        ?string $authId = null,
+        array $authExtra = [],
+    ): WampMessage {
+        $details = [
+            'roles' => [
+                'caller' => [
+                    'features' => [
+                        'progressive_call_results' => false,
+                    ],
+                ],
+                'callee' => [
+                    'features' => [
+                        'progressive_call_invocations' => false,
+                    ],
+                ],
+            ],
+            'authmethods' => [$authMethod],
+            'authextra' => empty($authExtra) ? (object) [] : $authExtra,
+        ];
+
+        // authid è opzionale — anonymous non lo invia
+        if ($authId !== null) {
+            $details['authid'] = $authId;
+        }
+
+        return WampMessage::create(
+            MessageType::HELLO,
+            $realm,
+            $details,
+        );
+    }
+
+    public static function authenticate(string $signature, array $extra = []): WampMessage
+    {
+        return WampMessage::create(
+            MessageType::AUTHENTICATE,
+            $signature,
+            empty($extra) ? (object) [] : $extra,
+        );
+    }
 }

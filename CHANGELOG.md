@@ -7,6 +7,48 @@ and the project adopts [Semantic Versioning](https://semver.org/spec/v2.0.0.html
 
 ## [Unreleased]
 
+### Planned — v1.0.0
+
+- RawSocket transport (TCP and Unix)
+- Complete MessagePack serializer
+- Complete documentation
+
+## [0.3.0] - 2026-04-24
+
+### Added
+
+- Full Auth Layer:
+- `AnonymousAuthenticator` — anonymous authentication (default)
+- `TicketAuthenticator` — static or dynamic token authentication
+- `WampCraAuthenticator` — WAMP-CRA authentication with HMAC-SHA256 and salted PBKDF2 support
+- `AuthenticatorFactory` — resolves the authenticator from the configuration
+- `AuthMethod` enum — strong typing of authentication methods
+- New WAMP messages:
+- `CHALLENGE` (type 4) in `MessageType`
+- `AUTHENTICATE` (type 5) in `MessageType`
+- `MessageFactory::helloWithAuth()` — HELLO with authmethods and authid support
+- `MessageFactory::authenticate()` — AUTHENTICATE message with signature
+- Resilience:
+- `ExponentialBackoffStrategy` — Configurable exponential backoff with a cap on the maximum delay
+- `ReconnectManager` — Automatic reconnect management with procedure and subscription reset
+- New contracts:
+- `AuthenticatorContract`
+- `ReconnectStrategyContract`
+- New exceptions:
+- `AuthenticationException` — Authentication errors with wampError and details
+- `ReconnectException` — Exhausted reconnect attempts
+- `WampSession` updated with auth sequence management: HELLO → [CHALLENGE → AUTHENTICATE] → WELCOME
+- `WampClientFactory` updated with `AuthenticatorFactory` and `ReconnectManager`
+- `WampClient` updated with automatic reconnect in `listen()`
+- `WampServiceProvider` updated with registration AuthenticatorFactory
+- Updated `config/hermod.php` with `auth`, `reconnect`, and `heartbeat` sections
+- Complete unit testing for Auth and Resilience
+
+### Fixed
+
+- `WampSession::hello()` now uses `helloWithAuth()` for all methods
+  ensuring compatibility with routers that require authmethods in the HELLO
+
 ## [0.2.0] - 2026-04-20
 
 ### Added

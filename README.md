@@ -16,7 +16,7 @@ it supports RPC (Caller/Callee) and PubSub with JSON serialization, MessagePack,
 ## Requirements
 
 - PHP 8.2+
-- Laravel 12.x or 13.x
+- Laravel 12.x+
 - A WAMP v2 router (e.g., [Crossbar.io](https://crossbar.io))
 
 ---
@@ -33,45 +33,379 @@ Publish the configuration:
 php artisan vendor:publish --tag=hermod-config
 ```
 
+---
+
+## Configuration
+
 Add the variables to your `.env`:
 
 ```env
+# Connection
 WAMP_URL=ws://localhost:8080/ws
 WAMP_REALM=realm1
 WAMP_SERIALIZER=json
+
+# Authentication (anonymous by default)
+WAMP_AUTH_METHOD=anonymous
+
+# Automatic reconnect
+WAMP_RECONNECT=true
+WAMP_RECONNECT_MAX=5
+WAMP_RECONNECT_DELAY=1
+WAMP_RECONNECT_MAX_DELAY=30
+WAMP_RECONNECT_MULTIPLIER=2
+
+# Heartbeat
+WAMP_HEARTBEAT=true
+WAMP_HEARTBEAT_INTERVAL=30
+```
+
+### Ticket Authentication
+
+```env
+WAMP_AUTH_METHOD=ticket
+WAMP_AUTH_ID=myuser
+WAMP_AUTH_TICKET=my-secret-token
+```
+
+### Authentication with WAMP-CRA
+
+```env
+WAMP_AUTH_METHOD=wampcra
+WAMP_AUTH_ID=myuser
+WAMP_AUTH_SECRET=my-secret
+```
+
+### Multiple connections in `config/hermod.php`
+
+```php
+'connections' => [
+
+    'default' => [
+        'transport'  => 'websocket',
+        'url'        => env('WAMP_URL', 'ws://localhost:8080/ws'),
+        'realm'      => 'realm1',
+        'serializer' => 'json',
+        'auth'       => ['method' => 'anonymous'],
+        'reconnect'  => ['enabled' => true, 'max_attempts' => 5],
+        'heartbeat'  => ['enabled' => true, 'interval' => 30],
+    ],
+
+    'secure' => [
+        'transport'  => 'websocket',
+        'url'        => env('WAMP_SECURE_URL', 'wss://router.example.com/ws'),
+        'realm'      => 'secure_realm',
+        'serializer' => 'cbor',
+        'auth'       => [
+            'method' => 'wampcra',
+            'authid' => env('WAMP_AUTH_ID'),
+            'secret' => env('WAMP_AUTH_SECRET'),
+        ],
+        'reconnect'  => ['enabled' => true, 'max_attempts' => 10],
+        'heartbeat'  => ['enabled' => true, 'interval' => 20],
+    ],
+
+],
 ```
 
 ---
 
-## Usage
+## Usage Examples
 
-### RPC — Caller — call a remote procedure
+### RPC — Procedure Registration (Callee)
+
+#### Without Authentication (Anonymous)
+
+In your `AppServiceProvider`:
+
+```php
+use Hermod\Laravel\Events\WampServeStarted;
+use Illuminate\Support\Facades\Event;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
+
+            // Simple procedure — add two numbers
+            $event->client->register('com.myapp.somma', function (array $args): int {
+                return $args[0] + $args[1];
+            });
+
+            // Procedure with kwargs — personalized greeting
+            $event->client->register('com.myapp.saluta', function (array $args, array $kwargs): string {
+                $nome  = $kwargs['nome']  ?? 'Utente';
+                $titolo = $kwargs['titolo'] ?? '';
+                return "Ciao, {$titolo} {$nome}!";
+            });
+
+            // Procedure with access to the Laravel DB
+            $event->client->register('com.myapp.utente.trova', function (array $args): array {
+                $user = \App\Models\User::find($args[0]);
+                return $user?->toArray() ?? [];
+            });
+
+            // Procedure with error handling
+            $event->client->register('com.myapp.divisione', function (array $args): float {
+                if ($args[1] === 0) {
+                    throw new \InvalidArgumentException('Divisione per zero non consentita.');
+                }
+                return $args[0] / $args[1];
+            });
+
+        });
+    }
+}
+```
+
+Start the worker:
+
+```bash
+php artisan wamp:serve
+```
+
+#### With Ticket Authentication
+
+```env
+WAMP_AUTH_METHOD=ticket
+WAMP_AUTH_ID=backend-service
+WAMP_AUTH_TICKET=supersecrettoken123
+```
+
+The `AppServiceProvider` remains identical — authentication is transparent.
+
+```bash
+php artisan wamp:serve
+# The client will automatically authenticate with the configured ticket
+```
+
+#### With WAMP-CRA authentication
+
+```env
+WAMP_AUTH_METHOD=wampcra
+WAMP_AUTH_ID=backend-service
+WAMP_AUTH_SECRET=my-hmac-secret
+```
+
+```bash
+php artisan wamp:serve
+# The client will automatically calculate the HMAC-SHA256 signature
+```
+
+#### With specific connection
+
+```bash
+php artisan wamp:serve --connection=secure
+```
+
+---
+
+### RPC — Procedure Call (Caller)
+
+#### Synchronous call
+
+```php
+use Hermod\Laravel\Facades\Wamp;
+
+// In a controller, job, command, etc.
+Wamp::connect();
+
+// Call with positional arguments
+$somma = Wamp::call('com.myapp.somma', [3, 5]);
+// → 8
+
+// Call with kwargs
+$saluto = Wamp::call('com.myapp.saluta', [], ['nome' => 'Mario', 'titolo' => 'Dr.']);
+// → "Ciao, Dr. Mario!"
+
+// Call with error handling
+try {
+    $risultato = Wamp::call('com.myapp.divisione', [10, 0]);
+} catch (\Hermod\Exceptions\RpcException $e) {
+    Log::error("Errore RPC: {$e->getMessage()}", ['wamp_error' => $e->wampError]);
+}
+
+Wamp::disconnect();
+```
+
+#### Asynchronous call
+
+```php
+use Hermod\Laravel\Facades\Wamp;
+use function Amp\Future\await;
+
+Wamp::connect();
+
+// Single asynchronous call
+$future = Wamp::callAsync('com.myapp.somma', [10, 20]);
+$result = $future->await();
+// → 30
+
+// Parallel calls — executed simultaneously
+$futures = [
+    'somma'   => Wamp::callAsync('com.myapp.somma',    [1, 2]),
+    'saluto'  => Wamp::callAsync('com.myapp.saluta',   [], ['nome' => 'Mario']),
+    'utente'  => Wamp::callAsync('com.myapp.utente.trova', [42]),
+];
+
+$risultati = await($futures);
+// $risultati['somma']  → 3
+// $risultati['saluto'] → "Ciao, Mario!"
+// $risultati['utente'] → ['id' => 42, 'name' => '...']
+
+Wamp::disconnect();
+```
+
+#### In a Laravel Route
+
+```php
+use Hermod\Laravel\Facades\Wamp;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/calcola/{a}/{b}', function (int $a, int $b) {
+    Wamp::connect();
+    $result = Wamp::call('com.myapp.somma', [$a, $b]);
+    Wamp::disconnect();
+    return response()->json(['risultato' => $result]);
+});
+
+Route::get('/utente/{id}', function (int $id) {
+    Wamp::connect();
+    $utente = Wamp::call('com.myapp.utente.trova', [$id]);
+    Wamp::disconnect();
+
+    if (empty($utente)) {
+        return response()->json(['error' => 'Utente non trovato'], 404);
+    }
+
+    return response()->json($utente);
+});
+```
+
+#### From terminal (debug)
+
+```bash
+# Call with positional arguments
+php artisan wamp:call com.myapp.somma 3 5
+
+# Calling with kwargs in JSON
+php artisan wamp:call com.myapp.saluta --kwargs='{"nome":"Mario","titolo":"Dr."}'
+
+# Call on specific connection
+php artisan wamp:call com.myapp.somma 10 20 --connection=secure
+
+# Output atteso:
+# ✓ Risultato (12.5ms):
+# 30
+```
+
+---
+
+### PubSub — Publisher
+
+#### Fire and Forget Publication
 
 ```php
 use Hermod\Laravel\Facades\Wamp;
 
 Wamp::connect();
 
-// Chiamata sincrona
-$result = Wamp::call('com.myapp.somma', [3, 5]);
-// → 8
+// Positional array → args
+Wamp::publish('com.myapp.notifiche', ['messaggio importante']);
 
-// Chiamata asincrona
-$future = Wamp::callAsync('com.myapp.somma', [10, 20]);
-$result = $future->await();
-// → 30
+// Associative array → kwargs automatically
+Wamp::publish('com.myapp.ordini', ['ordine_id' => 123, 'stato' => 'spedito']);
 
-// Chiamate parallele
-$f1 = Wamp::callAsync('com.myapp.somma', [1, 2]);
-$f2 = Wamp::callAsync('com.myapp.somma', [3, 4]);
-$f3 = Wamp::callAsync('com.myapp.somma', [5, 6]);
-[$r1, $r2, $r3] = \Amp\Future\await([$f1, $f2, $f3]);
-// → [3, 7, 11]
+// Args and kwargs combined
+Wamp::publish('com.myapp.eventi', [1, 2, 3], ['extra' => 'info']);
 
 Wamp::disconnect();
 ```
 
-### RPC — Callee — record a procedure
+#### Publication with acknowledgement
+
+```php
+use Hermod\Laravel\Facades\Wamp;
+
+Wamp::connect();
+
+// Waiting for PUBLISHED confirmation from the router
+$publicationId = Wamp::publishWithAck(
+    'com.myapp.notifiche',
+    ['messaggio' => 'Ordine confermato!']
+)->await();
+
+Log::info("Messaggio pubblicato", ['publication_id' => $publicationId]);
+
+Wamp::disconnect();
+```
+
+#### From a Laravel Job
+
+```php
+namespace App\Jobs;
+
+use Hermod\Laravel\Facades\Wamp;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+
+class NotificaOrdineSpe­dito implements ShouldQueue
+{
+    use Queueable;
+
+    public function __construct(
+        private readonly int    $ordineId,
+        private readonly string $corriere,
+    ) {}
+
+    public function handle(): void
+    {
+        Wamp::connect();
+
+        Wamp::publish('com.myapp.ordini.spediti', [], [
+            'ordine_id' => $this->ordineId,
+            'corriere'  => $this->corriere,
+            'timestamp' => now()->toISOString(),
+        ]);
+
+        Wamp::disconnect();
+    }
+}
+```
+
+#### Da un Observer Eloquent
+
+```php
+namespace App\Observers;
+
+use App\Models\Ordine;
+use Hermod\Laravel\Facades\Wamp;
+
+class OrdineObserver
+{
+    public function updated(Ordine $ordine): void
+    {
+        if ($ordine->isDirty('stato')) {
+            Wamp::connect();
+
+            Wamp::publish('com.myapp.ordini.aggiornati', [], [
+                'ordine_id'  => $ordine->id,
+                'stato_nuovo' => $ordine->stato,
+                'stato_vecchio' => $ordine->getOriginal('stato'),
+            ]);
+
+            Wamp::disconnect();
+        }
+    }
+}
+```
+
+---
+
+### PubSub — Subscriber
+
+#### Subscribing to a topic
 
 In your `AppServiceProvider`:
 
@@ -79,115 +413,200 @@ In your `AppServiceProvider`:
 use Hermod\Laravel\Events\WampServeStarted;
 
 Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
-$event->client->register('com.myapp.somma', function (array $args): int {
-return $args[0] + $args[1];
-});
 
-$event->client->register('com.myapp.utente', function (array $args): array {
-return User::find($args[0])?->toArray() ?? [];
-});
+    // Simple subscription
+    $event->client->subscribe('com.myapp.notifiche', function (array $args, array $kwargs): void {
+        Log::info('Notifica ricevuta', [
+            'args'   => $args,
+            'kwargs' => $kwargs,
+        ]);
+    });
+
+    // Subscription with business logic
+    $event->client->subscribe('com.myapp.ordini.spediti', function (array $args, array $kwargs): void {
+        $ordineId = $kwargs['ordine_id'] ?? null;
+        $corriere = $kwargs['corriere']  ?? 'sconosciuto';
+
+        if ($ordineId) {
+            \App\Models\Ordine::find($ordineId)?->update([
+                'notifica_spedizione_inviata' => true,
+            ]);
+
+            Log::info("Ordine {$ordineId} spedito con {$corriere}");
+        }
+    });
+
+    // Dynamic subscription and unsubscription
+    $subscription = $event->client->subscribe('com.myapp.temporaneo', function (array $args): void {
+        Log::debug('Evento temporaneo ricevuto', $args);
+    });
+
+    // You can unsubscribe later
+    // $event->client->unsubscribeById($subscription);
+
 });
 ```
 
-Start the worker Callee:
+Start the worker subscriber:
 
 ```bash
 php artisan wamp:serve
 ```
 
-### Terminal debugging
+#### Automatic Laravel Event
+
+Every WAMP `EVENT` received automatically dispatches a Laravel event,
+without having to register an explicit handler:
+
+```php
+use Hermod\Laravel\Events\WampEventReceived;
+
+// In EventServiceProvider or AppServiceProvider
+Event::listen(WampEventReceived::class, function (WampEventReceived $event): void {
+
+    // Filter by topic
+    match ($event->topic) {
+        'com.myapp.ordini.spediti' => dispatch(new \App\Jobs\ProcessaSpedizione(
+            ordineId: $event->kwargs['ordine_id'],
+        )),
+        'com.myapp.notifiche' => \App\Models\Notifica::create([
+            'contenuto' => $event->args[0] ?? '',
+            'ricevuta_at' => now(),
+        ]),
+        default => Log::debug("Evento WAMP non gestito: {$event->topic}"),
+    };
+
+});
+```
+
+---
+
+### Combining RPC and PubSub in the same worker
+
+```php
+use Hermod\Laravel\Events\WampServeStarted;
+
+Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
+
+    // ── RPC Procedures ────────────────────────────────────
+    $event->client->register('com.myapp.utente.crea', function (array $args, array $kwargs): array {
+        $user = \App\Models\User::create([
+            'name'  => $kwargs['nome'],
+            'email' => $kwargs['email'],
+        ]);
+
+        // Publish event after user creation
+        $event->client->publish('com.myapp.utenti.creati', [], [
+            'user_id' => $user->id,
+            'email'   => $user->email,
+        ]);
+
+        return $user->toArray();
+    });
+
+    $event->client->register('com.myapp.statistiche', function (): array {
+        return [
+            'utenti_totali' => \App\Models\User::count(),
+            'ordini_attivi' => \App\Models\Ordine::where('stato', 'attivo')->count(),
+        ];
+    });
+
+    // ── PubSub Subscriptions ──────────────────────────────
+    $event->client->subscribe('com.myapp.cache.invalida', function (array $args, array $kwargs): void {
+        $chiave = $kwargs['chiave'] ?? '*';
+        \Illuminate\Support\Facades\Cache::forget($chiave);
+        Log::info("Cache invalidata per chiave: {$chiave}");
+    });
+
+    $event->client->subscribe('com.myapp.broadcast', function (array $args, array $kwargs): void {
+        // Forward the WAMP event as a Laravel broadcast event
+        \Illuminate\Support\Facades\Broadcast::on('general')
+            ->event(new \App\Events\WampBroadcast($kwargs))
+            ->sendNow();
+    });
+
+});
+```
+
+---
+
+### Automatic Reconnect
+
+Reconnect is configured in `config/hermod.php` and works transparently
+during `listen()`. When the connection drops, Hermod:
+
+1. Detects the disconnection in the listening loop
+2. Waits for the initial delay (default: 1 second)
+3. Attempts to reconnect
+4. If it fails, it applies exponential backoff (1s → 2s → 4s → 8s → 16s → max 30s)
+5. After a successful reconnect, it automatically re-registers all procedures and subscriptions
+
+```php
+// Custom configuration for critical environment
+// config/hermod.php
+'reconnect' => [
+    'enabled'      => true,
+    'max_attempts' => 10,      // maximum 10 attempts
+    'base_delay'   => 0.5,     // starts from 0.5 seconds
+    'max_delay'    => 60.0,    // 60-second cap
+    'multiplier'   => 2.0,     // doubles with every failure
+],
+```
+
+---
+
+## Artisan Commands
 
 ```bash
-# Call a procedure directly from the terminal
+# Start a WAMP worker (Callee + Subscriber)
+php artisan wamp:serve
+php artisan wamp:serve --connection=secure
+php artisan wamp:serve --realm=myrealm
+php artisan wamp:serve --serializer=cbor
+
+# Make an RPC call from the terminal
 php artisan wamp:call com.myapp.somma 3 5
 php artisan wamp:call com.myapp.saluta --kwargs='{"nome":"Mario"}'
+php artisan wamp:call com.myapp.somma 10 20 --connection=secure
 ```
 
 ---
 
 ## Serializers
 
-| Driver    | Subprotocol      | Stato     | Note                            |
-| --------- | ---------------- | --------- | ------------------------------- |
-| `json`    | `wamp.2.json`    | ✅ Stable | Default, no extra dependencies  |
-| `cbor`    | `wamp.2.cbor`    | ✅ Stable | Requires `spomky-labs/cbor-php` |
-| `msgpack` | `wamp.2.msgpack` | 🔜 v1.0   | Requires `ext-msgpack`          |
-
-```env
-WAMP_SERIALIZER=cbor
-```
-
-### PubSub — Publisher
-
-```php
-use Hermod\Laravel\Facades\Wamp;
-
-Wamp::connect();
-
-// Fire and forget — nessuna conferma dal router
-Wamp::publish('com.myapp.notifiche', ['messaggio' => 'ciao!']);
-
-// Con conferma — attende PUBLISHED dal router
-$publicationId = Wamp::publishWithAck('com.myapp.notifiche', ['messaggio' => 'ciao!'])->await();
-
-Wamp::disconnect();
-```
-
-### PubSub — Subscriber
-
-In your `AppServiceProvider`:
-
-```php
-use Hermod\Laravel\Events\WampServeStarted;
-
-Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
-    $event->client->subscribe('com.myapp.notifiche', function (array $args, array $kwargs): void {
-        Log::info('Evento ricevuto', ['args' => $args, 'kwargs' => $kwargs]);
-    });
-});
-```
-
-Start the worker Subscriber:
-
-```bash
-php artisan wamp:serve
-```
-
-### PubSub — Automatic Laravel Event
-
-For each WAMP `EVENT` received, Hermod automatically dispatches
-a Laravel `WampEventReceived` event:
-
-```php
-use Hermod\Laravel\Events\WampEventReceived;
-
-Event::listen(WampEventReceived::class, function (WampEventReceived $event): void {
-    echo $event->topic;          // 'com.myapp.notifiche'
-    echo $event->publicationId;  // ID assegnato dal router
-    dump($event->args);          // ['messaggio' => 'ciao!']
-    dump($event->kwargs);        // []
-    dump($event->details);       // dettagli del router
-});
-```
+| Driver    | Subprotocol      | Stato      | Note                              | .env                    |
+| --------- | ---------------- | ---------- | --------------------------------- | ----------------------- |
+| `json`    | `wamp.2.json`    | ✅ Stabile | Default, nessuna dipendenza extra | WAMP_SERIALIZER=json    |
+| `cbor`    | `wamp.2.cbor`    | ✅ Stabile | Richiede `spomky-labs/cbor-php`   | WAMP_SERIALIZER=cbor    |
+| `msgpack` | `wamp.2.msgpack` | 🔜 v1.0    | Richiede `ext-msgpack`            | WAMP_SERIALIZER=msgpack |
 
 ---
 
 ## Roadmap
 
-| Version  | Content                                        |
-| -------- | ---------------------------------------------- |
-| **v0.1** | RPC Core — Caller, Callee, JSON, CBOR ✅       |
-| **v0.2** | PubSub — Publisher, Subscriber ✅              |
-| **v0.3** | Auth — WAMP-CRA, Ticket, Reconnect             |
-| **v1.0** | MessagePack, RawSocket, Complete documentation |
+| Version  | Content                                           |
+| -------- | ------------------------------------------------- |
+| **v0.1** | RPC Core — Caller, Callee, JSON, CBOR ✅          |
+| **v0.2** | PubSub — Publisher, Subscriber ✅                 |
+| **v0.3** | Auth — WAMP-CRA, Ticket, Reconnect ✅             |
+| **v1.0** | MessagePack, RawSocket, Complete documentation 🔜 |
 
 ---
 
 ## Testing
 
 ```bash
+# All tests
 ./vendor/bin/pest
-./vendor/bin/pest --coverage
+
+# With coverage
+./vendor/bin/pest --coverage --min=80
+
+# For specific suite
+./vendor/bin/pest --filter=Auth
+./vendor/bin/pest --filter=Reconnect
+./vendor/bin/pest --filter=PubSub
+./vendor/bin/pest --filter=Rpc
 ```
 
 ---
@@ -201,3 +620,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## License
 
 Hermod is open source software released under the [MIT] License (LICENSE.md).
+```
