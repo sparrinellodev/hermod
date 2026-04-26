@@ -13,6 +13,8 @@ use CBOR\OtherObject\FalseObject;
 use CBOR\OtherObject\NullObject;
 use CBOR\OtherObject\TrueObject;
 use CBOR\StringStream;
+use CBOR\Tag\NegativeBigIntegerTag;
+use CBOR\Tag\UnsignedBigIntegerTag;
 use CBOR\TextStringObject;
 use CBOR\UnsignedIntegerObject;
 use Hermod\Contracts\SerializerContract;
@@ -95,10 +97,46 @@ class CborSerializer implements SerializerContract
     private function intToCbor(int $value): CBORObject
     {
         if ($value >= 0) {
-            return UnsignedIntegerObject::create($value);
+            // UnsignedIntegerObject supporta solo fino a 0xFFFFFFFF (32-bit)
+            // Per valori maggiori usiamo CBOR Tag 2 (Positive Bignum)
+            if ($value <= 0xFFFF_FFFF) {
+                return UnsignedIntegerObject::create($value);
+            }
+
+            return $this->createPositiveBigInt($value);
         }
 
-        return NegativeIntegerObject::create($value);
+        $absValue = abs($value) - 1;
+
+        if ($absValue <= 0xFFFF_FFFF) {
+            return NegativeIntegerObject::create($value);
+        }
+
+        return $this->createNegativeBigInt($value);
+    }
+
+    private function createPositiveBigInt(int $value): CBORObject
+    {
+        $hex = dechex($value);
+        if (strlen($hex) % 2 !== 0) {
+            $hex = '0' . $hex;
+        }
+
+        return UnsignedBigIntegerTag::create(
+            ByteStringObject::create(hex2bin($hex))
+        );
+    }
+
+    private function createNegativeBigInt(int $value): CBORObject
+    {
+        $hex = dechex(abs($value) - 1);
+        if (strlen($hex) % 2 !== 0) {
+            $hex = '0' . $hex;
+        }
+
+        return NegativeBigIntegerTag::create(
+            ByteStringObject::create(hex2bin($hex))
+        );
     }
 
     private function arrayToCbor(array $value): CBORObject
@@ -147,22 +185,23 @@ class CborSerializer implements SerializerContract
 
     private function cborToPhp(CBORObject $object): mixed
     {
-        // Gestiamo ogni tipo CBOR esplicitamente
-        // invece di usare normalize() che converte gli interi in stringhe
-
         return match (true) {
             $object instanceof NullObject  => null,
             $object instanceof TrueObject  => true,
             $object instanceof FalseObject => false,
 
-            $object instanceof UnsignedIntegerObject   => (int) $object->normalize(),
-            $object instanceof NegativeIntegerObject   => (int) $object->normalize(),
+            $object instanceof UnsignedIntegerObject          => (int) $object->normalize(),
+            $object instanceof NegativeIntegerObject          => (int) $object->normalize(),
 
-            $object instanceof TextStringObject        => (string) $object->normalize(),
-            $object instanceof ByteStringObject        => (string) $object->normalize(),
+            // Grandi interi — Tag 2 e Tag 3
+            $object instanceof UnsignedBigIntegerTag      => (int) $object->normalize(),
+            $object instanceof NegativeBigIntegerTag      => (int) $object->normalize(),
 
-            $object instanceof ListObject              => $this->cborListToPhp($object),
-            $object instanceof MapObject               => $this->cborMapToPhp($object),
+            $object instanceof TextStringObject               => (string) $object->normalize(),
+            $object instanceof ByteStringObject               => (string) $object->normalize(),
+
+            $object instanceof ListObject                     => $this->cborListToPhp($object),
+            $object instanceof MapObject                      => $this->cborMapToPhp($object),
 
             default => $object->normalize(),
         };

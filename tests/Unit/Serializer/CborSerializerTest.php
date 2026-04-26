@@ -70,7 +70,7 @@ describe('CborSerializer', function () {
             'invalid' => fopen('php://memory', 'r'), // resource → non supportato
         ];
 
-        expect(fn () => $serializer->serialize($data))
+        expect(fn() => $serializer->serialize($data))
             ->toThrow(SerializationException::class);
     });
 
@@ -79,7 +79,7 @@ describe('CborSerializer', function () {
 
         $invalid = 'not-valid-cbor';
 
-        expect(fn () => $serializer->deserialize($invalid))
+        expect(fn() => $serializer->deserialize($invalid))
             ->toThrow(SerializationException::class);
     });
 
@@ -100,5 +100,15 @@ describe('CborSerializer', function () {
         );
 
         expect($result)->toBe($data);
+    });
+
+    it('gestisce interi a 64-bit (session ID WAMP)', function () {
+        $sessionId = 3084194912322238; // Tipico session ID Crossbar.io
+        $data      = [2, $sessionId, []];
+
+        $encoded = (new CborSerializer())->serialize($data);
+        $decoded = (new CborSerializer())->deserialize($encoded);
+
+        expect($decoded[1])->toBe($sessionId);
     });
 });
