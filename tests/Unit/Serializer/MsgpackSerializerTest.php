@@ -79,4 +79,21 @@ describe('MsgpackSerializer', function () {
 
         expect(strlen($msgpack))->toBeLessThan(strlen($json));
     });
+
+    it('serializza stdClass come mappa MessagePack', function () {
+        // stdClass vuoto → mappa vuota MessagePack
+        $data = [48, 1, (object) [], 'com.myapp.test', [3, 5], (object) []];
+        $packed = $this->serializer->serialize($data);
+
+        // Non deve lanciare eccezioni
+        expect($packed)->toBeString()->not->toBeEmpty();
+    });
+
+    it('serializza array associativo come mappa MessagePack', function () {
+        $data = [2, 123, ['roles' => ['caller' => [], 'callee' => []]]];
+        $packed = $this->serializer->serialize($data);
+        $result = $this->serializer->deserialize($packed);
+
+        expect($result[2]['roles'])->toHaveKeys(['caller', 'callee']);
+    });
 });
