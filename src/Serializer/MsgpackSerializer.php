@@ -4,59 +4,42 @@ namespace Hermod\Serializer;
 
 use Hermod\Contracts\SerializerContract;
 use Hermod\Exceptions\SerializationException;
+use MessagePack\MessagePack;
+use MessagePack\PackOptions;
+use MessagePack\UnpackOptions;
+use Throwable;
 
 class MsgpackSerializer implements SerializerContract
 {
-    public function __construct()
-    {
-        if (! extension_loaded('msgpack')) {
-            throw new SerializationException(
-                'Estensione PHP "msgpack" non installata. '.
-                    'Installala con: pecl install msgpack',
-            );
-        }
-    }
-
     /**
      * Summary of serialize
-     *
-     * @param  array<mixed>  $message
      *
      * @throws SerializationException
      */
     public function serialize(array $message): string
     {
-        $encoded = msgpack_pack($message);
-
-        if ($encoded === false) {
-            throw new SerializationException('Impossibile serializzare il messaggio WAMP in MessagePack.');
+        try {
+            return MessagePack::pack($message, PackOptions::FORCE_STR);
+        } catch (Throwable $e) {
+            throw new SerializationException(
+                "Impossibile serializzare il messaggio WAMP in MessagePack: {$e->getMessage()}",
+                previous: $e,
+            );
         }
-
-        return $encoded;
     }
 
     /**
      * Summary of deserialize
-     *
-     * @return array<mixed>
      *
      * @throws SerializationException
      */
     public function deserialize(string $raw): array
     {
         try {
-            set_error_handler(function ($severity, $message) {
-                throw new SerializationException($message);
-            });
-
-            $decoded = msgpack_unpack($raw);
-
-            restore_error_handler();
-        } catch (\Throwable $e) {
-            restore_error_handler();
-
+            $decoded = MessagePack::unpack($raw, UnpackOptions::BIGINT_AS_STR);
+        } catch (Throwable $e) {
             throw new SerializationException(
-                "Impossibile deserializzare il messaggio WAMP dal MessagePack: {$e->getMessage()}",
+                "Impossibile deserializzare il messaggio WAMP da MessagePack: {$e->getMessage()}",
                 previous: $e,
             );
         }
@@ -70,6 +53,9 @@ class MsgpackSerializer implements SerializerContract
         return $decoded;
     }
 
+    /**
+     * Summary of subprotocol
+     */
     public function subprotocol(): string
     {
         return 'wamp.2.msgpack';

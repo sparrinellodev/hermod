@@ -15,7 +15,7 @@ use Hermod\Rpc\PendingCallRegistry;
 use Hermod\Rpc\RequestIdGenerator;
 use Hermod\Serializer\SerializerFactory;
 use Hermod\Session\WampSessionFactory;
-use Hermod\Transport\WebSocketTransportFactory;
+use Hermod\Transport\TransportFactory;
 
 class WampClientFactory
 {
@@ -24,7 +24,7 @@ class WampClientFactory
      */
     public function __construct(
         private readonly SerializerFactory $serializerFactory,
-        private readonly WebSocketTransportFactory $transportFactory,
+        private readonly TransportFactory $transportFactory,
         private readonly WampSessionFactory $sessionFactory,
         private readonly AuthenticatorFactory $authenticatorFactory,
     ) {}
@@ -43,6 +43,7 @@ class WampClientFactory
 
         // 2. Transport
         $transport = $this->transportFactory->make(
+            type: $config['transport'] ?? 'websocket',
             url: $config['url'],
             serializer: $serializer,
         );

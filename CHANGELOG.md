@@ -5,13 +5,32 @@ All relevant changes to Hermod are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/it/1.0.0/),
 and the project adopts [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-04-26
 
-### Planned — v1.0.0
+### Added
 
-- RawSocket transport (TCP and Unix)
-- Complete MessagePack serializer
-- Complete documentation
+- Full MessagePack Serializer via `rybakit/msgpack` (pure PHP, no C extensions):
+- Serialization with `PackOptions::FORCE_STR` for WAMP compatibility
+- Deserialization with `UnpackOptions::BIGINT_AS_STR` for large integers
+- Subprotocol `wamp.2.msgpack`
+- Full RawSocket Transport:
+- `RawSocketHandshake` — 4-byte handshake handling according to WAMP spec
+- `RawSocketFrame` — message framing with ping/pong support
+- `RawSocketTransport` — transport over TCP (`tcp://`) and Unix socket (`unix://`)
+- `RawSocketTransportFactory`
+- Unified `TransportFactory` — automatically resolve WebSocket or RawSocket from the config
+- `WampClientFactory` updated to use `TransportFactory`
+- `WampServiceProvider` updated with `RawSocketTransportFactory` and `TransportFactory` registration
+- New sample connections in `config/hermod.php`:
+- `local_tcp` — RawSocket over TCP
+- `local_unix` — RawSocket over Unix socket
+- ​​Full unit tests for MessagePack, RawSocket, and TransportFactory
+
+### Updated
+
+- `composer.json` — added `rybakit/msgpack:^0.7` dependency
+- `composer.json` — added `amphp/socket:^2.0` dependency
+- `MsgpackSerializer` — full implementation (previously used external extension)
 
 ## [0.3.0] - 2026-04-24
 

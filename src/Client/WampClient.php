@@ -69,11 +69,11 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of call
-     * @param string $procedure
-     * @param array<mixed> $args
-     * @param array<mixed> $kwargs
+     *
+     * @param  array<mixed>  $args
+     * @param  array<mixed>  $kwargs
+     *
      * @throws WampClientException
-     * @return mixed
      */
     public function call(string $procedure, array $args = [], array $kwargs = []): mixed
     {
@@ -98,10 +98,9 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of callAsync
-     * @param string $procedure
-     * @param array<mixed> $args
-     * @param array<mixed> $kwargs
-     * @return Future
+     *
+     * @param  array<mixed>  $args
+     * @param  array<mixed>  $kwargs
      */
     public function callAsync(string $procedure, array $args = [], array $kwargs = []): Future
     {
@@ -132,9 +131,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of register
-     * @param string $procedure
-     * @param callable $handler
-     * @return void
      */
     public function register(string $procedure, callable $handler): void
     {
@@ -145,8 +141,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of unregister
-     * @param string $procedure
-     * @return void
      */
     public function unregister(string $procedure): void
     {
@@ -157,6 +151,7 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of getRegistrations
+     *
      * @return callable[]
      */
     public function getRegistrations(): array
@@ -166,10 +161,9 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of publish
-     * @param string $topic
-     * @param array<mixed> $args
-     * @param array<mixed> $kwargs
-     * @return void
+     *
+     * @param  array<mixed>  $args
+     * @param  array<mixed>  $kwargs
      */
     public function publish(string $topic, array $args = [], array $kwargs = []): void
     {
@@ -179,9 +173,9 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of publishWithAck
-     * @param string $topic
-     * @param array<mixed> $args
-     * @param array<mixed> $kwargs
+     *
+     * @param  array<mixed>  $args
+     * @param  array<mixed>  $kwargs
      * @return Future<int>
      */
     public function publishWithAck(string $topic, array $args = [], array $kwargs = []): Future
@@ -213,9 +207,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of subscribe
-     * @param string $topic
-     * @param callable $handler
-     * @return Subscription
      */
     public function subscribe(string $topic, callable $handler): Subscription
     {
@@ -226,8 +217,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of unsubscribe
-     * @param string $topic
-     * @return void
      */
     public function unsubscribe(string $topic): void
     {
@@ -237,8 +226,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of unsubscribeById
-     * @param Subscription $subscription
-     * @return void
      */
     public function unsubscribeById(Subscription $subscription): void
     {
@@ -248,6 +235,7 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of getSubscriptions
+     *
      * @return Subscription[]
      */
     public function getSubscriptions(): array
@@ -263,8 +251,8 @@ class WampClient implements WampClientContract
      * Summary of listen
      * Avvia il loop di ricezione messaggi.
      * Rimane in ascolto finché la connessione è attiva o viene chiamato disconnect().
+     *
      * @throws WampClientException
-     * @return void
      */
     public function listen(): void
     {
@@ -307,7 +295,6 @@ class WampClient implements WampClientContract
     /**
      * Summary of tick
      * Elabora un singolo messaggio in arrivo senza bloccare.
-     * @return void
      */
     public function tick(): void
     {
@@ -323,7 +310,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of getSessionId
-     * @return int|null
      */
     public function getSessionId(): ?int
     {
@@ -332,7 +318,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of getRealm
-     * @return string
      */
     public function getRealm(): string
     {
@@ -345,8 +330,8 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of ensureConnected
+     *
      * @throws WampClientException
-     * @return void
      */
     private function ensureConnected(): void
     {
@@ -359,7 +344,6 @@ class WampClient implements WampClientContract
 
     /**
      * Summary of handleReconnect
-     * @return void
      */
     private function handleReconnect(): void
     {
@@ -367,7 +351,7 @@ class WampClient implements WampClientContract
         $subscriptions = $this->subscriber->getSubscriptions();
 
         $this->reconnectManager->reconnect(
-            connectFn: fn() => $this->session->hello(),
+            connectFn: fn () => $this->session->hello(),
             onSuccess: function () use ($registrations, $subscriptions) {
                 // Ri-registriamo tutte le procedure
                 foreach ($registrations as $procedure => $handler) {

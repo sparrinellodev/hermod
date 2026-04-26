@@ -33,6 +33,7 @@ class WampCraAuthenticator implements AuthenticatorContract
 
     /**
      * Summary of authExtra
+     *
      * @return array<string, mixed>
      */
     public function authExtra(): array
@@ -42,10 +43,10 @@ class WampCraAuthenticator implements AuthenticatorContract
 
     /**
      * Summary of handleChallenge
-     * @param string $challenge
-     * @param array<mixed> $extra
+     *
+     * @param  array<mixed>  $extra
+     *
      * @throws AuthenticationException
-     * @return string|null
      */
     public function handleChallenge(string $challenge, array $extra = []): ?string
     {
@@ -82,8 +83,8 @@ class WampCraAuthenticator implements AuthenticatorContract
 
     /**
      * Summary of resolveKey
-     * @param array<mixed> $extra
-     * @return string
+     *
+     * @param  array<mixed>  $extra
      */
     private function resolveKey(array $extra): string
     {

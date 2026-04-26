@@ -9,6 +9,8 @@ use Hermod\Laravel\Console\WampCallCommand;
 use Hermod\Laravel\Console\WampServeCommand;
 use Hermod\Serializer\SerializerFactory;
 use Hermod\Session\WampSessionFactory;
+use Hermod\Transport\RawSocketTransportFactory;
+use Hermod\Transport\TransportFactory;
 use Hermod\Transport\WebSocketTransportFactory;
 use Illuminate\Support\ServiceProvider;
 
@@ -68,6 +70,17 @@ class WampServiceProvider extends ServiceProvider
             return new WebSocketTransportFactory;
         });
 
+        $this->app->singleton(RawSocketTransportFactory::class, function () {
+            return new RawSocketTransportFactory;
+        });
+
+        $this->app->singleton(TransportFactory::class, function ($app) {
+            return new TransportFactory(
+                websocketFactory: $app->make(WebSocketTransportFactory::class),
+                rawSocketFactory: $app->make(RawSocketTransportFactory::class),
+            );
+        });
+
         $this->app->singleton(WampSessionFactory::class, function () {
             return new WampSessionFactory;
         });
@@ -79,7 +92,7 @@ class WampServiceProvider extends ServiceProvider
         $this->app->singleton(WampClientFactory::class, function ($app) {
             return new WampClientFactory(
                 serializerFactory: $app->make(SerializerFactory::class),
-                transportFactory: $app->make(WebSocketTransportFactory::class),
+                transportFactory: $app->make(TransportFactory::class),
                 sessionFactory: $app->make(WampSessionFactory::class),
                 authenticatorFactory: $app->make(AuthenticatorFactory::class),
             );

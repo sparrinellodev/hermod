@@ -91,6 +91,26 @@ WAMP_AUTH_SECRET=my-secret
         'heartbeat'  => ['enabled' => true, 'interval' => 30],
     ],
 
+    'local_tcp' => [
+        'transport'  => 'rawsocket',
+        'url'        => 'tcp://localhost:8081',
+        'realm'      => 'realm1',
+        'serializer' => 'msgpack',
+        'auth'       => ['method' => 'anonymous'],
+        'reconnect'  => ['enabled' => true, 'max_attempts' => 5],
+        'heartbeat'  => ['enabled' => true, 'interval' => 30],
+    ],
+
+    'local_unix' => [
+        'transport'  => 'rawsocket',
+        'url'        => 'unix:///var/run/crossbar/router.sock',
+        'realm'      => 'realm1',
+        'serializer' => 'cbor',
+        'auth'       => ['method' => 'anonymous'],
+        'reconnect'  => ['enabled' => true, 'max_attempts' => 5],
+        'heartbeat'  => ['enabled' => true, 'interval' => 30],
+    ],
+
     'secure' => [
         'transport'  => 'websocket',
         'url'        => env('WAMP_SECURE_URL', 'wss://router.example.com/ws'),
@@ -578,7 +598,17 @@ php artisan wamp:call com.myapp.somma 10 20 --connection=secure
 | --------- | ---------------- | ---------- | --------------------------------- | ----------------------- |
 | `json`    | `wamp.2.json`    | ✅ Stabile | Default, nessuna dipendenza extra | WAMP_SERIALIZER=json    |
 | `cbor`    | `wamp.2.cbor`    | ✅ Stabile | Richiede `spomky-labs/cbor-php`   | WAMP_SERIALIZER=cbor    |
-| `msgpack` | `wamp.2.msgpack` | 🔜 v1.0    | Richiede `ext-msgpack`            | WAMP_SERIALIZER=msgpack |
+| `msgpack` | `wamp.2.msgpack` | ✅ Stabile | Richiede `rybakit/msgpack`        | WAMP_SERIALIZER=msgpack |
+
+---
+
+## Authentication
+
+| Method      | Use case                           | Required configuration |
+| ----------- | ---------------------------------- | ---------------------- |
+| `anonymous` | Local development, closed networks | none                   |
+| `ticket`    | API key, static JWT                | `authid`, `ticket`     |
+| `wampcra`   | Secure authentication with HMAC    | `authid`, `secret`     |
 
 ---
 
@@ -589,7 +619,7 @@ php artisan wamp:call com.myapp.somma 10 20 --connection=secure
 | **v0.1** | RPC Core — Caller, Callee, JSON, CBOR ✅          |
 | **v0.2** | PubSub — Publisher, Subscriber ✅                 |
 | **v0.3** | Auth — WAMP-CRA, Ticket, Reconnect ✅             |
-| **v1.0** | MessagePack, RawSocket, Complete documentation 🔜 |
+| **v1.0** | MessagePack, RawSocket, Complete documentation ✅ |
 
 ---
 
@@ -607,6 +637,8 @@ php artisan wamp:call com.myapp.somma 10 20 --connection=secure
 ./vendor/bin/pest --filter=Reconnect
 ./vendor/bin/pest --filter=PubSub
 ./vendor/bin/pest --filter=Rpc
+./vendor/bin/pest --filter=RawSocket
+./vendor/bin/pest --filter=Msgpack
 ```
 
 ---
@@ -620,4 +652,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## License
 
 Hermod is open source software released under the [MIT] License (LICENSE.md).
+
+```
+
 ```

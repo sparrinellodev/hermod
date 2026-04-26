@@ -32,6 +32,7 @@ class TicketAuthenticator implements AuthenticatorContract
 
     /**
      * Summary of authExtra
+     *
      * * @return array<mixed>
      */
     public function authExtra(): array
@@ -41,9 +42,8 @@ class TicketAuthenticator implements AuthenticatorContract
 
     /**
      * Summary of handleChallenge
-     * @param string $challenge
-     * @param array<string, mixed> $extra
-     * @return string|null
+     *
+     * @param  array<string, mixed>  $extra
      */
     public function handleChallenge(string $challenge, array $extra = []): ?string
     {

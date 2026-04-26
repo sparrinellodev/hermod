@@ -9,7 +9,8 @@ class AuthenticatorFactory
 {
     /**
      * Summary of make
-     * @param array<string, mixed> $config
+     *
+     * @param  array<string, mixed>  $config
      * @return AnonymousAuthenticator|TicketAuthenticator|WampCraAuthenticator
      */
     public function make(array $config): AuthenticatorContract
@@ -18,7 +19,7 @@ class AuthenticatorFactory
 
         if ($method === null) {
             throw new AuthenticationException(
-                "Metodo di autenticazione non supportato: '{$config['method']}'. " .
+                "Metodo di autenticazione non supportato: '{$config['method']}'. ".
                     'Valori accettati: anonymous, ticket, wampcra',
             );
         }

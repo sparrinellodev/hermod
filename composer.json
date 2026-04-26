@@ -14,7 +14,8 @@
         "php": "^8.2",
         "amphp/websocket-client": "^2.0",
         "amphp/amp": "^3.0",
-        "spomky-labs/cbor-php": "^3.2"
+        "spomky-labs/cbor-php": "^3.2",
+        "rybakit/msgpack": "^0.10.0"
     },
     "suggest": {
         "ext-msgpack": "Required to use the MessagePack serializer"
