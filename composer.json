@@ -40,7 +40,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Hermod\\LaravelWamp\\WampServiceProvider"
+                "Hermod\\LaravelWamp\\Laravel\\WampServiceProvider"
             ],
             "aliases": {
                 "Wamp": "Hermod\\Laravel\\Facades\\Wamp"
