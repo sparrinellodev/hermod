@@ -1,25 +1,38 @@
 <?php
 
-namespace Hermod\Reconnect;
+namespace Hermod\LaravelWamp\Reconnect;
 
-use Hermod\Contracts\ReconnectStrategyContract;
-use Hermod\Exceptions\ReconnectException;
+use Hermod\LaravelWamp\Contracts\ReconnectStrategyContract;
+use Hermod\LaravelWamp\Exceptions\ReconnectException;
 use Throwable;
 
+/**
+ * Manages automated connection recovery and retry loops using pluggable reconnect strategies.
+ *
+ * Coordinates asynchronous delay intervals via AMPHP, executes reconnection callbacks, 
+ * tracks retry states, and handles failure lifecycles until recovery succeeds or max limits are reached.
+ */
 class ReconnectManager
 {
+    /** @var bool Flag indicating whether a reconnection sequence is currently active. */
     private bool $reconnecting = false;
 
     /**
-     * Summary of __construct
+     * Create a new ReconnectManager instance.
+     *
+     * @param  \Hermod\LaravelWamp\Contracts\ReconnectStrategyContract  $strategy  The underlying retry strategy (e.g., exponential backoff).
+     * @param  bool  $enabled  Whether automatic reconnection is enabled.
      */
     public function __construct(
         private readonly ReconnectStrategyContract $strategy,
         private readonly bool $enabled,
-    ) {}
+    ) {
+    }
 
     /**
-     * Summary of isEnabled
+     * Determine whether automatic reconnection is enabled.
+     *
+     * @return bool True if enabled, false otherwise.
      */
     public function isEnabled(): bool
     {
@@ -27,7 +40,9 @@ class ReconnectManager
     }
 
     /**
-     * Summary of isReconnecting
+     * Determine whether the manager is currently attempting to reconnect.
+     *
+     * @return bool True if reconnecting, false otherwise.
      */
     public function isReconnecting(): bool
     {
@@ -35,19 +50,21 @@ class ReconnectManager
     }
 
     /**
-     * Esegue il reconnect con backoff esponenziale.
-     * Chiama $connectFn finché non riesce o i tentativi si esauriscono.
+     * Execute the reconnection loop using the configured strategy.
      *
-     * @param  callable  $connectFn  Funzione che tenta la connessione
-     * @param  callable  $onSuccess  Chiamata dopo reconnect riuscito
+     * Repeatedly invokes the connection callback with delayed intervals until connection succeeds 
+     * or all retry attempts are exhausted.
      *
-     * @throws ReconnectException
+     * @param  callable  $connectFn  The callback function attempting to establish connection.
+     * @param  callable  $onSuccess  The callback executed upon a successful reconnection.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\ReconnectException If automatic reconnection is disabled or all attempts fail.
      */
     public function reconnect(callable $connectFn, callable $onSuccess): void
     {
-        if (! $this->enabled) {
+        if (!$this->enabled) {
             throw new ReconnectException(
-                'Reconnect automatico disabilitato nella configurazione.',
+                'Automatic reconnection is disabled in configuration.',
             );
         }
 
@@ -58,7 +75,7 @@ class ReconnectManager
             $delay = $this->strategy->nextDelay();
             $attempt = $this->strategy->attempts() + 1;
 
-            // Aspettiamo prima di ritentare
+            // Wait before making the retry attempt using AMPHP delay
             \Amp\delay($delay);
 
             try {
@@ -71,11 +88,11 @@ class ReconnectManager
             } catch (Throwable $e) {
                 $this->strategy->recordFailure();
 
-                // Se è l'ultimo tentativo lanciamo eccezione
-                if (! $this->strategy->shouldRetry()) {
+                // If this was the last attempt, throw an exception
+                if (!$this->strategy->shouldRetry()) {
                     $this->reconnecting = false;
                     throw new ReconnectException(
-                        "Reconnect fallito dopo {$attempt} tentativi: {$e->getMessage()}",
+                        "Reconnect failed after {$attempt} attempts: {$e->getMessage()}",
                         previous: $e,
                     );
                 }

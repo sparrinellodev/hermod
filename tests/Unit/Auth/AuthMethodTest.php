@@ -1,6 +1,6 @@
 <?php
 
-use Hermod\Auth\AuthMethod;
+use Hermod\LaravelWamp\Auth\AuthMethod;
 
 describe('AuthMethod', function () {
 

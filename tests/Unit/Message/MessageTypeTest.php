@@ -1,6 +1,6 @@
 <?php
 
-use Hermod\Message\MessageType;
+use Hermod\LaravelWamp\Message\MessageType;
 
 describe('MessageType', function () {
 

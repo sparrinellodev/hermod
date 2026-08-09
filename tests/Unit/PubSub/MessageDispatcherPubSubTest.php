@@ -1,12 +1,12 @@
 <?php
 
-use Hermod\Message\WampMessage;
-use Hermod\PubSub\Publisher;
-use Hermod\PubSub\Subscriber;
-use Hermod\Rpc\Callee;
-use Hermod\Rpc\Caller;
-use Hermod\Rpc\MessageDispatcher;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\PubSub\Publisher;
+use Hermod\LaravelWamp\PubSub\Subscriber;
+use Hermod\LaravelWamp\Rpc\Callee;
+use Hermod\LaravelWamp\Rpc\Caller;
+use Hermod\LaravelWamp\Rpc\MessageDispatcher;
+use Hermod\LaravelWamp\Session\WampSession;
 
 describe('MessageDispatcher — PubSub', function () {
 

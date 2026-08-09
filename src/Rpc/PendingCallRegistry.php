@@ -1,20 +1,35 @@
 <?php
 
-namespace Hermod\Rpc;
+namespace Hermod\LaravelWamp\Rpc;
 
-use Hermod\Exceptions\RpcException;
+use Hermod\LaravelWamp\Exceptions\RpcException;
 
+/**
+ * Registry managing active, pending remote procedure calls (RPC).
+ *
+ * Tracks ongoing call lifecycles by generating unique request IDs, storing 
+ * corresponding PendingCall instances, and handling batch rejections during connection drops.
+ */
 class PendingCallRegistry
 {
-    /** @var array<int, PendingCall> */
+    /** @var array<int, PendingCall> Mapping of requestId to PendingCall instances */
     private array $pending = [];
 
+    /**
+     * Create a new PendingCallRegistry instance.
+     *
+     * @param  \Hermod\LaravelWamp\Rpc\RequestIdGenerator  $idGenerator  The request ID generator service.
+     */
     public function __construct(
         private readonly RequestIdGenerator $idGenerator,
-    ) {}
+    ) {
+    }
 
     /**
-     * Registra una nuova chiamata pendente e restituisce il requestId.
+     * Register a new pending RPC call, generate a unique request ID, and return the call instance.
+     *
+     * @param  string  $procedure  The URI of the procedure being called.
+     * @return PendingCall The newly registered pending call instance.
      */
     public function register(string $procedure): PendingCall
     {
@@ -31,13 +46,18 @@ class PendingCallRegistry
     }
 
     /**
-     * Recupera una chiamata pendente per requestId.
+     * Retrieve a pending call by its request ID without removing it from the registry.
+     *
+     * @param  int  $requestId  The unique request ID.
+     * @return PendingCall The matching pending call instance.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\RpcException If no pending call is found for the given ID.
      */
     public function get(int $requestId): PendingCall
     {
-        if (! isset($this->pending[$requestId])) {
+        if (!isset($this->pending[$requestId])) {
             throw new RpcException(
-                "Nessuna chiamata pendente trovata per requestId: {$requestId}",
+                "No pending call found for request ID: {$requestId}",
             );
         }
 
@@ -45,7 +65,12 @@ class PendingCallRegistry
     }
 
     /**
-     * Rimuove e restituisce una chiamata pendente.
+     * Remove and return a pending call by its request ID (pull operation).
+     *
+     * @param  int  $requestId  The unique request ID.
+     * @return PendingCall The removed pending call instance.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\RpcException If no pending call is found.
      */
     public function pull(int $requestId): PendingCall
     {
@@ -56,7 +81,9 @@ class PendingCallRegistry
     }
 
     /**
-     * Rigetta tutte le chiamate pendenti — usato in caso di disconnessione.
+     * Reject all currently pending calls with a given exception — typically used during disconnections.
+     *
+     * @param  \Throwable  $e  The exception used to reject all pending futures.
      */
     public function rejectAll(\Throwable $e): void
     {
@@ -67,11 +94,21 @@ class PendingCallRegistry
         $this->pending = [];
     }
 
+    /**
+     * Get the total count of active pending calls.
+     *
+     * @return int The number of pending calls.
+     */
     public function count(): int
     {
         return count($this->pending);
     }
 
+    /**
+     * Determine whether the registry has no pending calls.
+     *
+     * @return bool True if empty, false otherwise.
+     */
     public function isEmpty(): bool
     {
         return empty($this->pending);
@@ -81,9 +118,14 @@ class PendingCallRegistry
     // Helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Generate a guaranteed unique request ID, avoiding any collisions with existing pending entries.
+     *
+     * @return int A unique request ID integer.
+     */
     private function generateUniqueId(): int
     {
-        // Evita collisioni nel (raro) caso di ID duplicato
+        // Avoid collisions in the rare event of a duplicate ID generation
         do {
             $id = $this->idGenerator->generate();
         } while (isset($this->pending[$id]));

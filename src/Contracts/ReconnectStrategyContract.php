@@ -1,31 +1,43 @@
 <?php
 
-namespace Hermod\Contracts;
+namespace Hermod\LaravelWamp\Contracts;
 
+/**
+ * Defines the contract for defining reconnection backoff and retry strategies.
+ *
+ * Implementations of this interface manage the logic behind automated 
+ * reconnections (e.g., exponential backoff, maximum attempt limits).
+ */
 interface ReconnectStrategyContract
 {
     /**
-     * Indica se deve essere tentato un altro reconnect.
+     * Determine if another reconnection attempt should be made.
+     *
+     * @return bool True if attempts remain, false if the maximum limit has been reached.
      */
     public function shouldRetry(): bool;
 
     /**
-     * Restituisce il delay in secondi prima del prossimo tentativo.
+     * Get the delay duration in seconds before the next reconnection attempt.
+     *
+     * @return float The delay time in seconds (supporting fractional seconds).
      */
     public function nextDelay(): float;
 
     /**
-     * Registra un tentativo di reconnect fallito.
+     * Record a failed reconnection attempt, updating internal counters and delays.
      */
     public function recordFailure(): void;
 
     /**
-     * Resetta il contatore dei tentativi (dopo reconnect riuscito).
+     * Reset the retry counters and state (typically called after a successful reconnection).
      */
     public function reset(): void;
 
     /**
-     * Restituisce il numero di tentativi effettuati finora.
+     * Get the number of failed attempts made so far in the current cycle.
+     *
+     * @return int The total number of recorded failures.
      */
     public function attempts(): int;
 }

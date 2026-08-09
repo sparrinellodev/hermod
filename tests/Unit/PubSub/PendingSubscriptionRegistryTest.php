@@ -1,8 +1,8 @@
 <?php
 
-use Hermod\Exceptions\PubSubException;
-use Hermod\PubSub\PendingSubscriptionRegistry;
-use Hermod\PubSub\Subscription;
+use Hermod\LaravelWamp\Exceptions\PubSubException;
+use Hermod\LaravelWamp\PubSub\PendingSubscriptionRegistry;
+use Hermod\LaravelWamp\PubSub\Subscription;
 
 describe('PendingSubscriptionRegistry', function () {
 

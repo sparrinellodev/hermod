@@ -1,26 +1,47 @@
 <?php
 
-namespace Hermod\Client;
+namespace Hermod\LaravelWamp\Client;
 
 use Amp\Future;
-use Hermod\Contracts\WampClientContract;
-use Hermod\Exceptions\TransportException;
-use Hermod\Exceptions\WampClientException;
-use Hermod\Exceptions\WampProtocolException;
-use Hermod\PubSub\Publisher;
-use Hermod\PubSub\Subscriber;
-use Hermod\PubSub\Subscription;
-use Hermod\Reconnect\ReconnectManager;
-use Hermod\Rpc\Callee;
-use Hermod\Rpc\Caller;
-use Hermod\Rpc\MessageDispatcher;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Contracts\WampClientContract;
+use Hermod\LaravelWamp\Exceptions\TransportException;
+use Hermod\LaravelWamp\Exceptions\WampClientException;
+use Hermod\LaravelWamp\Exceptions\WampProtocolException;
+use Hermod\LaravelWamp\PubSub\Publisher;
+use Hermod\LaravelWamp\PubSub\Subscriber;
+use Hermod\LaravelWamp\PubSub\Subscription;
+use Hermod\LaravelWamp\Reconnect\ReconnectManager;
+use Hermod\LaravelWamp\Rpc\Callee;
+use Hermod\LaravelWamp\Rpc\Caller;
+use Hermod\LaravelWamp\Rpc\MessageDispatcher;
+use Hermod\LaravelWamp\Session\WampSession;
 use Throwable;
 
+/**
+ * The primary WAMP client orchestrator.
+ *
+ * This class ties together connection management, session handling, 
+ * RPC (Caller/Callee), and Pub/Sub (Publisher/Subscriber) features, 
+ * acting as the main entry point for WAMP operations.
+ */
 class WampClient implements WampClientContract
 {
+    /**
+     * Indicates whether the client is actively listening for incoming messages.
+     */
     private bool $listening = false;
 
+    /**
+     * Create a new WampClient instance.
+     *
+     * @param WampSession $session The underlying WAMP session manager.
+     * @param Caller $caller Handles outgoing RPC calls.
+     * @param Callee $callee Handles incoming RPC registrations and invocations.
+     * @param Publisher $publisher Handles outgoing topic publications.
+     * @param Subscriber $subscriber Handles topic subscriptions.
+     * @param MessageDispatcher $dispatcher Routes incoming WAMP messages to their respective handlers.
+     * @param ReconnectManager $reconnectManager Manages automatic reconnection and state recovery.
+     */
     public function __construct(
         private readonly WampSession $session,
         private readonly Caller $caller,
@@ -29,12 +50,16 @@ class WampClient implements WampClientContract
         private readonly Subscriber $subscriber,
         private readonly MessageDispatcher $dispatcher,
         private readonly ReconnectManager $reconnectManager,
-    ) {}
+    ) {
+    }
 
     // -------------------------------------------------------------------------
-    // Connessione
+    // Connection Management
     // -------------------------------------------------------------------------
 
+    /**
+     * Establish the connection to the WAMP router.
+     */
     public function connect(): void
     {
         if ($this->isConnected()) {
@@ -44,9 +69,12 @@ class WampClient implements WampClientContract
         $this->session->hello();
     }
 
+    /**
+     * Gracefully disconnect from the WAMP router.
+     */
     public function disconnect(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             return;
         }
 
@@ -55,25 +83,34 @@ class WampClient implements WampClientContract
         try {
             $this->session->goodbye();
         } catch (Throwable) {
+            // Silently catch exceptions during disconnect to ensure local cleanup
         }
     }
 
+    /**
+     * Determine if the client is currently connected and the session is established.
+     *
+     * @return bool
+     */
     public function isConnected(): bool
     {
         return $this->session->isEstablished();
     }
 
     // -------------------------------------------------------------------------
-    // CallerContract
+    // Caller Contract (RPC)
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of call
+     * Synchronously call a remote procedure.
+     * This method will block until the result is returned by the router.
      *
-     * @param  array<mixed>  $args
-     * @param  array<mixed>  $kwargs
+     * @param  string  $procedure  The URI of the procedure to call.
+     * @param  array<mixed>  $args  Positional arguments.
+     * @param  array<mixed>  $kwargs  Keyword arguments.
+     * @return mixed The result of the RPC call.
      *
-     * @throws WampClientException
+     * @throws WampClientException If the connection is lost while waiting for the result.
      */
     public function call(string $procedure, array $args = [], array $kwargs = []): mixed
     {
@@ -81,13 +118,13 @@ class WampClient implements WampClientContract
 
         $future = $this->caller->callAsync($procedure, $args, $kwargs);
 
-        while (! $future->isComplete()) {
+        while (!$future->isComplete()) {
             try {
                 $message = $this->session->receive();
                 $this->dispatcher->dispatch($message);
             } catch (TransportException $e) {
                 throw new WampClientException(
-                    "Connessione persa durante l'attesa del risultato: {$e->getMessage()}",
+                    "Connection lost while waiting for the RPC result: {$e->getMessage()}",
                     previous: $e,
                 );
             }
@@ -97,10 +134,13 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of callAsync
+     * Asynchronously call a remote procedure.
+     * Returns an Amp Future that resolves when the result is available.
      *
-     * @param  array<mixed>  $args
-     * @param  array<mixed>  $kwargs
+     * @param  string  $procedure  The URI of the procedure to call.
+     * @param  array<mixed>  $args  Positional arguments.
+     * @param  array<mixed>  $kwargs  Keyword arguments.
+     * @return Future<mixed>
      */
     public function callAsync(string $procedure, array $args = [], array $kwargs = []): Future
     {
@@ -109,13 +149,13 @@ class WampClient implements WampClientContract
         return \Amp\async(function () use ($procedure, $args, $kwargs): mixed {
             $future = $this->caller->callAsync($procedure, $args, $kwargs);
 
-            while (! $future->isComplete()) {
+            while (!$future->isComplete()) {
                 try {
                     $message = $this->session->receive();
                     $this->dispatcher->dispatch($message);
                 } catch (TransportException $e) {
                     throw new WampClientException(
-                        "Connessione persa durante l'attesa del risultato: {$e->getMessage()}",
+                        "Connection lost while waiting for the async RPC result: {$e->getMessage()}",
                         previous: $e,
                     );
                 }
@@ -126,44 +166,52 @@ class WampClient implements WampClientContract
     }
 
     // -------------------------------------------------------------------------
-    // CalleeContract
+    // Callee Contract (RPC)
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of register
+     * Register a callable to handle a remote procedure call.
+     *
+     * @param  string  $procedure  The URI of the procedure to register.
+     * @param  callable  $handler  The function/method to execute when called.
      */
     public function register(string $procedure, callable $handler): void
     {
         $this->ensureConnected();
-
         $this->callee->register($procedure, $handler);
     }
 
     /**
-     * Summary of unregister
+     * Unregister a previously registered procedure.
+     *
+     * @param  string  $procedure  The URI of the procedure.
      */
     public function unregister(string $procedure): void
     {
         $this->ensureConnected();
-
         $this->callee->unregister($procedure);
     }
 
     /**
-     * Summary of getRegistrations
+     * Get all active RPC registrations.
      *
-     * @return callable[]
+     * @return array<string, callable>
      */
     public function getRegistrations(): array
     {
         return $this->callee->getRegistrations();
     }
 
+    // -------------------------------------------------------------------------
+    // Publisher Contract (Pub/Sub)
+    // -------------------------------------------------------------------------
+
     /**
-     * Summary of publish
+     * Publish an event to a topic (fire-and-forget).
      *
-     * @param  array<mixed>  $args
-     * @param  array<mixed>  $kwargs
+     * @param  string  $topic  The URI of the topic.
+     * @param  array<mixed>  $args  Positional arguments.
+     * @param  array<mixed>  $kwargs  Keyword arguments.
      */
     public function publish(string $topic, array $args = [], array $kwargs = []): void
     {
@@ -172,11 +220,13 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of publishWithAck
+     * Publish an event to a topic and wait for acknowledgment from the router.
+     * Returns an Amp Future that resolves to the Publication ID.
      *
-     * @param  array<mixed>  $args
-     * @param  array<mixed>  $kwargs
-     * @return Future<int>
+     * @param  string  $topic  The URI of the topic.
+     * @param  array<mixed>  $args  Positional arguments.
+     * @param  array<mixed>  $kwargs  Keyword arguments.
+     * @return Future<int> The publication ID.
      */
     public function publishWithAck(string $topic, array $args = [], array $kwargs = []): Future
     {
@@ -185,13 +235,13 @@ class WampClient implements WampClientContract
         return \Amp\async(function () use ($topic, $args, $kwargs): int {
             $future = $this->publisher->publishWithAck($topic, $args, $kwargs);
 
-            while (! $future->isComplete()) {
+            while (!$future->isComplete()) {
                 try {
                     $message = $this->session->receive();
                     $this->dispatcher->dispatch($message);
                 } catch (TransportException $e) {
                     throw new WampClientException(
-                        "Connessione persa durante l'attesa di PUBLISHED: {$e->getMessage()}",
+                        "Connection lost while waiting for PUBLISHED acknowledgment: {$e->getMessage()}",
                         previous: $e,
                     );
                 }
@@ -202,11 +252,15 @@ class WampClient implements WampClientContract
     }
 
     // -------------------------------------------------------------------------
-    // SubscriberContract
+    // Subscriber Contract (Pub/Sub)
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of subscribe
+     * Subscribe to a topic to receive events.
+     *
+     * @param  string  $topic  The URI of the topic.
+     * @param  callable  $handler  The function to execute when an event is received.
+     * @return Subscription The active subscription instance.
      */
     public function subscribe(string $topic, callable $handler): Subscription
     {
@@ -216,7 +270,9 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of unsubscribe
+     * Unsubscribe from a topic using its URI.
+     *
+     * @param  string  $topic  The URI of the topic.
      */
     public function unsubscribe(string $topic): void
     {
@@ -225,7 +281,9 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of unsubscribeById
+     * Unsubscribe using a specific Subscription instance.
+     *
+     * @param  Subscription  $subscription  The subscription to remove.
      */
     public function unsubscribeById(Subscription $subscription): void
     {
@@ -234,9 +292,9 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of getSubscriptions
+     * Get all active topic subscriptions.
      *
-     * @return Subscription[]
+     * @return array<string, Subscription>
      */
     public function getSubscriptions(): array
     {
@@ -248,11 +306,11 @@ class WampClient implements WampClientContract
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of listen
-     * Avvia il loop di ricezione messaggi.
-     * Rimane in ascolto finché la connessione è attiva o viene chiamato disconnect().
+     * Start the continuous message reception loop.
+     * * This method blocks and keeps listening for incoming WAMP messages 
+     * (RPC calls, Pub/Sub events) as long as the connection is active.
      *
-     * @throws WampClientException
+     * @throws WampClientException If a fatal error occurs in the loop.
      */
     public function listen(): void
     {
@@ -264,18 +322,17 @@ class WampClient implements WampClientContract
                 $message = $this->session->receive();
                 $this->dispatcher->dispatch($message);
             } catch (WampProtocolException) {
-                // GOODBYE dal router — uscita pulita
+                // GOODBYE received from the router — clean exit
                 $this->listening = false;
-
                 return;
             } catch (TransportException $e) {
-                // Connessione persa — tentiamo reconnect
+                // Connection lost — attempt automatic reconnection if enabled
                 if ($this->reconnectManager->isEnabled()) {
                     $this->handleReconnect();
                 } else {
                     $this->listening = false;
                     throw new WampClientException(
-                        "Connessione persa: {$e->getMessage()}",
+                        "Connection lost: {$e->getMessage()}",
                         previous: $e,
                     );
                 }
@@ -285,7 +342,7 @@ class WampClient implements WampClientContract
             } catch (Throwable $e) {
                 $this->listening = false;
                 throw new WampClientException(
-                    "Errore nel loop di ricezione: {$e->getMessage()}",
+                    "Error occurred in the receive loop: {$e->getMessage()}",
                     previous: $e,
                 );
             }
@@ -293,8 +350,8 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of tick
-     * Elabora un singolo messaggio in arrivo senza bloccare.
+     * Process a single incoming message without blocking continuously.
+     * Useful for manual event loop control or periodic polling.
      */
     public function tick(): void
     {
@@ -305,11 +362,13 @@ class WampClient implements WampClientContract
     }
 
     // -------------------------------------------------------------------------
-    // Informazioni sessione
+    // Session Information
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of getSessionId
+     * Get the current WAMP session ID.
+     *
+     * @return int|null
      */
     public function getSessionId(): ?int
     {
@@ -317,7 +376,9 @@ class WampClient implements WampClientContract
     }
 
     /**
-     * Summary of getRealm
+     * Get the connected routing realm.
+     *
+     * @return string
      */
     public function getRealm(): string
     {
@@ -325,25 +386,28 @@ class WampClient implements WampClientContract
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // Internal Helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of ensureConnected
+     * Ensure the client has an active connection before proceeding.
      *
      * @throws WampClientException
      */
     private function ensureConnected(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             throw new WampClientException(
-                'Client non connesso. Chiamare connect() prima di eseguire operazioni.',
+                'Client is not connected. Call connect() before performing operations.'
             );
         }
     }
 
     /**
-     * Summary of handleReconnect
+     * Handle the reconnection flow and restore the client's state.
+     * * This will suspend operations, attempt to reconnect via the ReconnectManager,
+     * and automatically re-register all RPC endpoints and topic subscriptions
+     * once the new session is established.
      */
     private function handleReconnect(): void
     {
@@ -351,14 +415,14 @@ class WampClient implements WampClientContract
         $subscriptions = $this->subscriber->getSubscriptions();
 
         $this->reconnectManager->reconnect(
-            connectFn: fn () => $this->session->hello(),
+            connectFn: fn() => $this->session->hello(),
             onSuccess: function () use ($registrations, $subscriptions) {
-                // Ri-registriamo tutte le procedure
+                // Restore all RPC registrations
                 foreach ($registrations as $procedure => $handler) {
                     $this->callee->register($procedure, $handler);
                 }
 
-                // Ri-sottoscriviamo tutti i topic
+                // Restore all Pub/Sub subscriptions
                 foreach ($subscriptions as $topic => $subscription) {
                     $this->subscriber->subscribe($topic, $subscription->handler);
                 }

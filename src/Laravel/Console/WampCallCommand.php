@@ -1,24 +1,46 @@
 <?php
 
-namespace Hermod\Laravel\Console;
+namespace Hermod\LaravelWamp\Laravel\Console;
 
 use function Amp\async;
 
-use Hermod\Client\WampClientFactory;
-use Hermod\Exceptions\RpcException;
+use Hermod\LaravelWamp\Client\WampClientFactory;
+use Hermod\LaravelWamp\Exceptions\RpcException;
 use Illuminate\Console\Command;
 
+/**
+ * Artisan command to execute WAMP Remote Procedure Calls (RPC) from the terminal.
+ *
+ * Handles argument parsing, option resolution (such as JSON kwargs and connection config),
+ * asynchronous execution via AMPHP, and formatted console output.
+ */
 class WampCallCommand extends Command
 {
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
     protected $signature = 'wamp:call
-                            {procedure            : URI della procedura es: com.myapp.somma}
-                            {args?*               : Argomenti posizionali}
-                            {--connection=default : Nome della connessione in config/hermod.php}
-                            {--kwargs=            : Argomenti nominali in formato JSON}
-                            {--timeout=30         : Timeout in secondi}';
+                            {procedure            : The procedure URI, e.g., com.myapp.sum}
+                            {args?* : Positional arguments}
+                            {--connection=default : Name of the connection in config/wamp.php}
+                            {--kwargs=            : Keyword arguments in JSON format}
+                            {--timeout=30         : Timeout in seconds}';
 
-    protected $description = 'Esegui una chiamata RPC WAMP dal terminale';
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Execute a WAMP RPC call from the terminal';
 
+    /**
+     * Execute the console command.
+     *
+     * @param  \Hermod\LaravelWamp\Client\WampClientFactory  $factory  The WAMP client factory instance.
+     * @return int Command exit code (Command::SUCCESS or Command::FAILURE).
+     */
     public function handle(WampClientFactory $factory): int
     {
         $procedure = $this->argument('procedure');
@@ -26,37 +48,37 @@ class WampCallCommand extends Command
         $kwargs = $this->resolveKwargs();
         $config = $this->resolveConfig();
 
-        $this->info("Chiamata RPC: {$procedure}");
-        $this->line('Args:   '.json_encode($args));
-        $this->line('Kwargs: '.json_encode($kwargs));
+        $this->info("RPC Call: {$procedure}");
+        $this->line('Args:   ' . json_encode($args));
+        $this->line('Kwargs: ' . json_encode($kwargs));
         $this->newLine();
 
         $client = $factory->make($config);
 
-        // Eseguiamo tutto dentro l'event loop AMPHP
+        // Execute everything within the AMPHP event loop
         return async(function () use ($client, $procedure, $args, $kwargs): int {
             try {
                 $client->connect();
-                $this->info("Connesso. Session ID: {$client->getSessionId()}");
+                $this->info("Connected. Session ID: {$client->getSessionId()}");
 
                 $start = microtime(true);
                 $result = $client->call($procedure, $args, $kwargs);
                 $ms = round((microtime(true) - $start) * 1000, 2);
 
                 $this->newLine();
-                $this->info("✓ Risultato ({$ms}ms):");
+                $this->info("✓ Result ({$ms}ms):");
                 $this->line(json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
                 return Command::SUCCESS;
             } catch (RpcException $e) {
                 $this->newLine();
-                $this->error("✗ Errore RPC: {$e->getMessage()}");
+                $this->error("✗ RPC Error: {$e->getMessage()}");
                 $this->line("WAMP Error: {$e->wampError}");
 
                 return Command::FAILURE;
             } catch (\Throwable $e) {
                 $this->newLine();
-                $this->error("✗ Errore: {$e->getMessage()}");
+                $this->error("✗ Error: {$e->getMessage()}");
 
                 return Command::FAILURE;
             } finally {
@@ -65,16 +87,21 @@ class WampCallCommand extends Command
                         $client->disconnect();
                     }
                 } catch (\Throwable) {
-                    // ignoriamo
+                    // Suppress cleanup exceptions
                 }
             }
         })->await();
     }
 
     // -------------------------------------------------------------------------
-    // Helpers — invariati
+    // Helpers
     // -------------------------------------------------------------------------
 
+    /**
+     * Parse and cast positional arguments passed via the command line.
+     *
+     * @return array<mixed> The processed arguments.
+     */
     private function resolveArgs(): array
     {
         $raw = $this->argument('args') ?? [];
@@ -93,6 +120,11 @@ class WampCallCommand extends Command
         }, $raw);
     }
 
+    /**
+     * Parse keyword arguments provided as a JSON string option.
+     *
+     * @return array<string, mixed> The decoded keyword arguments, or empty array on failure.
+     */
     private function resolveKwargs(): array
     {
         $raw = $this->option('kwargs');
@@ -106,19 +138,24 @@ class WampCallCommand extends Command
 
             return is_array($decoded) ? $decoded : [];
         } catch (\JsonException) {
-            $this->warn('--kwargs non è JSON valido, verrà ignorato.');
+            $this->warn('--kwargs is not valid JSON and will be ignored.');
 
             return [];
         }
     }
 
+    /**
+     * Resolve the connection configuration array based on the command option.
+     *
+     * @return array<string, mixed> The connection configuration settings.
+     */
     private function resolveConfig(): array
     {
         $connectionName = $this->option('connection');
-        $config = config("hermod.connections.{$connectionName}", []);
+        $config = config("wamp.connections.{$connectionName}", []);
 
         if (empty($config)) {
-            $this->error("Connessione '{$connectionName}' non trovata in config/hermod.php");
+            $this->error("Connection '{$connectionName}' not found in config/wamp.php");
             exit(Command::FAILURE);
         }
 

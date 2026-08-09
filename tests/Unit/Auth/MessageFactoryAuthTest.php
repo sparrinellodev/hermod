@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Message\MessageFactory;
-use Hermod\Message\MessageType;
+use Hermod\LaravelWamp\Message\MessageFactory;
+use Hermod\LaravelWamp\Message\MessageType;
 
 describe('MessageFactory — Auth', function () {
 

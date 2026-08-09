@@ -1,10 +1,10 @@
-# Hermod — WAMP Client for Laravel
+# Laravel-WAMP — WAMP Client for Laravel
 
 [![Latest Version](https://img.shields.io/packagist/v/hermod/laravel-wamp.svg)](https://packagist.org/packages/hermod/laravel-wamp)
 [![PHP Version](https://img.shields.io/packagist/php-v/hermod/laravel-wamp.svg)](https://packagist.org/packages/hermod/laravel-wamp)
 [![License](https://img.shields.io/packagist/l/hermod/laravel-wamp.svg)](LICENSE.md)
 
-Hermod is a modern WAMP v2 client for Laravel 12+, built on AMPHP v3
+Laravel-WAMP is a modern WAMP v2 client for Laravel 12+, built on AMPHP v3
 and PHP Fibers. Born as an actively maintained alternative to Thruway,
 it supports RPC (Caller/Callee) and PubSub with JSON serialization, MessagePack, and CBOR.
 
@@ -30,7 +30,7 @@ composer require hermod/laravel-wamp
 Publish the configuration:
 
 ```bash
-php artisan vendor:publish --tag=hermod-config
+php artisan vendor:publish --tag=wamp-config
 ```
 
 ---
@@ -76,7 +76,7 @@ WAMP_AUTH_ID=myuser
 WAMP_AUTH_SECRET=my-secret
 ```
 
-### Multiple connections in `config/hermod.php`
+### Multiple connections in `config/wamp.php`
 
 ```php
 'connections' => [
@@ -139,7 +139,7 @@ WAMP_AUTH_SECRET=my-secret
 In your `AppServiceProvider`:
 
 ```php
-use Hermod\Laravel\Events\WampServeStarted;
+use Hermod\LaravelWamp\Laravel\Events\WampServeStarted;
 use Illuminate\Support\Facades\Event;
 
 class AppServiceProvider extends ServiceProvider
@@ -226,7 +226,7 @@ php artisan wamp:serve --connection=secure
 #### Synchronous call
 
 ```php
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 
 // In a controller, job, command, etc.
 Wamp::connect();
@@ -242,7 +242,7 @@ $saluto = Wamp::call('com.myapp.saluta', [], ['nome' => 'Mario', 'titolo' => 'Dr
 // Call with error handling
 try {
     $risultato = Wamp::call('com.myapp.divisione', [10, 0]);
-} catch (\Hermod\Exceptions\RpcException $e) {
+} catch (\Hermod\LaravelWamp\RpcException $e) {
     Log::error("Errore RPC: {$e->getMessage()}", ['wamp_error' => $e->wampError]);
 }
 
@@ -252,7 +252,7 @@ Wamp::disconnect();
 #### Asynchronous call
 
 ```php
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 use function Amp\Future\await;
 
 Wamp::connect();
@@ -280,7 +280,7 @@ Wamp::disconnect();
 #### In a Laravel Route
 
 ```php
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/calcola/{a}/{b}', function (int $a, int $b) {
@@ -327,7 +327,7 @@ php artisan wamp:call com.myapp.somma 10 20 --connection=secure
 #### Fire and Forget Publication
 
 ```php
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 
 Wamp::connect();
 
@@ -346,7 +346,7 @@ Wamp::disconnect();
 #### Publication with acknowledgement
 
 ```php
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 
 Wamp::connect();
 
@@ -366,7 +366,7 @@ Wamp::disconnect();
 ```php
 namespace App\Jobs;
 
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -400,7 +400,7 @@ class NotificaOrdineSpe­dito implements ShouldQueue
 namespace App\Observers;
 
 use App\Models\Ordine;
-use Hermod\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
 
 class OrdineObserver
 {
@@ -430,7 +430,7 @@ class OrdineObserver
 In your `AppServiceProvider`:
 
 ```php
-use Hermod\Laravel\Events\WampServeStarted;
+use Hermod\LaravelWamp\Laravel\Events\WampServeStarted;
 
 Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
 
@@ -479,7 +479,7 @@ Every WAMP `EVENT` received automatically dispatches a Laravel event,
 without having to register an explicit handler:
 
 ```php
-use Hermod\Laravel\Events\WampEventReceived;
+use Hermod\LaravelWamp\Laravel\Events\WampEventReceived;
 
 // In EventServiceProvider or AppServiceProvider
 Event::listen(WampEventReceived::class, function (WampEventReceived $event): void {
@@ -504,7 +504,7 @@ Event::listen(WampEventReceived::class, function (WampEventReceived $event): voi
 ### Combining RPC and PubSub in the same worker
 
 ```php
-use Hermod\Laravel\Events\WampServeStarted;
+use Hermod\LaravelWamp\Laravel\Events\WampServeStarted;
 
 Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
 
@@ -552,8 +552,8 @@ Event::listen(WampServeStarted::class, function (WampServeStarted $event) {
 
 ### Automatic Reconnect
 
-Reconnect is configured in `config/hermod.php` and works transparently
-during `listen()`. When the connection drops, Hermod:
+Reconnect is configured in `config/wamp.php` and works transparently
+during `listen()`. When the connection drops, Laravel-WAMP:
 
 1. Detects the disconnection in the listening loop
 2. Waits for the initial delay (default: 1 second)
@@ -563,7 +563,7 @@ during `listen()`. When the connection drops, Hermod:
 
 ```php
 // Custom configuration for critical environment
-// config/hermod.php
+// config/wamp.php
 'reconnect' => [
     'enabled'      => true,
     'max_attempts' => 10,      // maximum 10 attempts
@@ -651,7 +651,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Hermod is open source software released under the [MIT] License (LICENSE.md).
+Laravel-WAMP is open source software released under the [MIT] License (LICENSE.md).
 
 ```
 

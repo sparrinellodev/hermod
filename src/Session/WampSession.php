@@ -1,56 +1,70 @@
 <?php
 
-namespace Hermod\Session;
+namespace Hermod\LaravelWamp\Session;
 
-use Hermod\Contracts\AuthenticatorContract;
-use Hermod\Contracts\SerializerContract;
-use Hermod\Contracts\SessionContract;
-use Hermod\Contracts\TransportContract;
-use Hermod\Exceptions\AuthenticationException;
-use Hermod\Exceptions\SessionException;
-use Hermod\Exceptions\WampProtocolException;
-use Hermod\Message\MessageFactory;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
+use Hermod\LaravelWamp\Contracts\AuthenticatorContract;
+use Hermod\LaravelWamp\Contracts\SerializerContract;
+use Hermod\LaravelWamp\Contracts\SessionContract;
+use Hermod\LaravelWamp\Contracts\TransportContract;
+use Hermod\LaravelWamp\Exceptions\AuthenticationException;
+use Hermod\LaravelWamp\Exceptions\SessionException;
+use Hermod\LaravelWamp\Exceptions\WampProtocolException;
+use Hermod\LaravelWamp\Message\MessageFactory;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
 use Throwable;
 
+/**
+ * Manages WAMP client session lifecycles, handshakes, authentication, and transport communications.
+ *
+ * Implements the SessionContract interface, handling connection opening via transports, 
+ * serialization handoffs, HELLO/WELCOME/CHALLENGE authentication sequences, and graceful or abrupt closures.
+ */
 class WampSession implements SessionContract
 {
+    /** @var SessionState The current state of the WAMP session. */
     private SessionState $state = SessionState::Closed;
 
+    /** @var int|null The unique session ID assigned by the router upon successful establishment. */
     private ?int $sessionId = null;
 
-    /** @var array<mixed> */
+    /** @var array<mixed> Metadata and configuration details provided by the router. */
     private array $routerDetails = [];
 
     /**
-     * Summary of __construct
+     * Create a new WampSession instance.
+     *
+     * @param  \Hermod\LaravelWamp\Contracts\TransportContract  $transport  The underlying transport layer (e.g., WebSocket).
+     * @param  \Hermod\LaravelWamp\Contracts\SerializerContract  $serializer  The protocol serializer (e.g., JSON, CBOR, MessagePack).
+     * @param  string  $realm  The WAMP realm to join.
+     * @param  \Hermod\LaravelWamp\Contracts\AuthenticatorContract  $authenticator  The session authentication provider.
      */
     public function __construct(
         private readonly TransportContract $transport,
         private readonly SerializerContract $serializer,
         private readonly string $realm,
         private readonly AuthenticatorContract $authenticator,
-    ) {}
+    ) {
+    }
 
     // -------------------------------------------------------------------------
-    // Ciclo di vita
+    // Session Lifecycle Management
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of hello
+     * Open the underlying transport connection and initiate the WAMP session handshake (HELLO).
      *
-     * @throws SessionException
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If session is not in a Closed state or handshake fails.
      */
     public function hello(): void
     {
         $this->assertState(SessionState::Closed, 'hello');
 
-        // Apre la connessione WebSocket
+        // Open the underlying transport connection
         $this->transport->connect();
         $this->state = SessionState::Establishing;
 
-        // Invia HELLO
+        // Send HELLO message with authentication details
         $this->sendMessage(
             MessageFactory::helloWithAuth(
                 realm: $this->realm,
@@ -61,21 +75,14 @@ class WampSession implements SessionContract
         );
 
         $this->handleAuthSequence();
-        // Attende WELCOME o ABORT
-        /*$message = $this->receiveMessage();
-
-        match ($message->type()) {
-            MessageType::WELCOME => $this->handleWelcome($message),
-            MessageType::ABORT => $this->handleAbort($message),
-            default => throw new SessionException(
-                "Risposta inattesa durante l'handshake WAMP: {$message->type()->name}",
-            ),
-        };*/
     }
 
+    /**
+     * Gracefully terminate the WAMP session by sending a GOODBYE message and closing the transport.
+     */
     public function goodbye(): void
     {
-        // Se la sessione non è stabilita non c'è nulla da chiudere
+        // If the session is not established, there is nothing to cleanly close
         if ($this->state !== SessionState::Established) {
             $this->closeSession();
 
@@ -88,17 +95,22 @@ class WampSession implements SessionContract
             $this->sendMessage(MessageFactory::goodbye());
             $this->receiveMessage();
         } catch (Throwable) {
+            // Suppress errors during graceful teardown
         } finally {
             $this->closeSession();
         }
     }
 
     // -------------------------------------------------------------------------
-    // Invio e ricezione messaggi (usati anche da Caller/Callee)
+    // Message Transmission (Used by Caller, Callee, Publisher, Subscriber)
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of send
+     * Send an established WampMessage over the session transport.
+     *
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The message to send.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If session is not established.
      */
     public function send(WampMessage $message): void
     {
@@ -107,7 +119,11 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of receive
+     * Receive and deserialize an incoming WampMessage from the transport.
+     *
+     * @return WampMessage The received message instance.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If session is not established.
      */
     public function receive(): WampMessage
     {
@@ -117,11 +133,13 @@ class WampSession implements SessionContract
     }
 
     // -------------------------------------------------------------------------
-    // Implementazione SessionContract
+    // SessionContract Implementation
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of getSessionId
+     * Get the router-assigned session ID.
+     *
+     * @return int|null The session ID, or null if unestablished.
      */
     public function getSessionId(): ?int
     {
@@ -129,7 +147,9 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of getRealm
+     * Get the target WAMP realm name.
+     *
+     * @return string The realm URI.
      */
     public function getRealm(): string
     {
@@ -137,7 +157,9 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of isEstablished
+     * Determine whether the session is successfully established.
+     *
+     * @return bool True if established, false otherwise.
      */
     public function isEstablished(): bool
     {
@@ -145,7 +167,9 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of getState
+     * Get the current state of the session.
+     *
+     * @return SessionState The session state enum instance.
      */
     public function getState(): SessionState
     {
@@ -153,9 +177,9 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of getRouterDetails
+     * Get router details and capabilities returned during welcome handshake.
      *
-     * @return array<mixed>
+     * @return array<mixed> Array of router detail parameters.
      */
     public function getRouterDetails(): array
     {
@@ -163,17 +187,23 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of getAuthenticator
+     * Get the session authenticator instance.
+     *
+     * @return AuthenticatorContract The authenticator service.
      */
     public function getAuthenticator(): AuthenticatorContract
     {
         return $this->authenticator;
     }
 
+    // -------------------------------------------------------------------------
+    // Authentication Handshake Flow Helpers
+    // -------------------------------------------------------------------------
+
     /**
-     * Summary of handleAuthSequence
+     * Handle incoming messages during the authentication sequence (WELCOME, CHALLENGE, or ABORT).
      *
-     * @throws SessionException
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If an unexpected message type is received.
      */
     private function handleAuthSequence(): void
     {
@@ -184,16 +214,18 @@ class WampSession implements SessionContract
             MessageType::CHALLENGE => $this->handleChallenge($message),
             MessageType::ABORT => $this->handleAbort($message),
             default => throw new SessionException(
-                "Risposta inattesa durante l'handshake WAMP: {$message->type()->name}",
+                "Unexpected response during WAMP handshake: {$message->type()->name}",
             ),
         };
     }
 
     /**
-     * Summary of handleChallenge
+     * Handle incoming CHALLENGE messages by generating signatures and sending AUTHENTICATE.
      *
-     * @throws AuthenticationException
-     * @throws SessionException
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The incoming CHALLENGE message.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\AuthenticationException If challenges are unsupported or signature generation fails.
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If an unexpected response occurs after authentication.
      */
     private function handleChallenge(WampMessage $message): void
     {
@@ -201,14 +233,14 @@ class WampSession implements SessionContract
         $authMethod = (string) ($message->get(1) ?? '');
         $extra = (array) ($message->get(2) ?? []);
 
-        if (! $this->authenticator->requiresChallenge()) {
+        if (!$this->authenticator->requiresChallenge()) {
             throw new AuthenticationException(
-                "Il router ha inviato una CHALLENGE ma l'authenticator ".
-                    "'{$this->authenticator->method()->value}' non la supporta.",
+                "The router sent a CHALLENGE, but the authenticator " .
+                "'{$this->authenticator->method()->value}' does not support it.",
             );
         }
 
-        // Calcoliamo la risposta alla challenge
+        // Calculate challenge signature response
         $signature = $this->authenticator->handleChallenge(
             challenge: $extra['challenge'] ?? '',
             extra: $extra,
@@ -216,41 +248,44 @@ class WampSession implements SessionContract
 
         if ($signature === null) {
             throw new AuthenticationException(
-                'Impossibile generare la firma per la challenge WAMP.',
+                'Failed to generate signature for WAMP challenge.',
             );
         }
 
-        // Inviamo AUTHENTICATE
+        // Send AUTHENTICATE message
         $this->sendMessage(MessageFactory::authenticate($signature));
 
-        // Attendiamo WELCOME o ABORT
+        // Await WELCOME or ABORT response
         $response = $this->receiveMessage();
 
         match ($response->type()) {
             MessageType::WELCOME => $this->handleWelcome($response),
             MessageType::ABORT => $this->handleAbort($response),
             default => throw new SessionException(
-                "Risposta inattesa dopo AUTHENTICATE: {$response->type()->name}",
+                "Unexpected response following AUTHENTICATE: {$response->type()->name}",
             ),
         };
     }
 
     // -------------------------------------------------------------------------
-    // Handlers messaggi in ingresso
+    // Incoming Message Handlers
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of handleWelcome
+     * Handle incoming WELCOME messages, establishing the session state.
+     * Expected format: [2, sessionId, details]
      *
-     * @throws SessionException
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The incoming WELCOME message.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If session ID is invalid.
      */
     private function handleWelcome(WampMessage $message): void
     {
         $sessionId = $message->get(1);
 
-        if (! is_int($sessionId)) {
+        if (!is_int($sessionId)) {
             throw new SessionException(
-                'Session ID non valido ricevuto nel messaggio WELCOME.',
+                'Invalid session ID received in WELCOME message.',
             );
         }
 
@@ -260,11 +295,14 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of handleAbort
+     * Handle incoming ABORT messages, closing session and throwing corresponding exceptions.
+     * Expected format: [3, details, reason]
      *
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The incoming ABORT message.
      * @return never
      *
-     * @throws WampProtocolException
+     * @throws \Hermod\LaravelWamp\Exceptions\AuthenticationException If aborted due to authorization failure.
+     * @throws \Hermod\LaravelWamp\Exceptions\WampProtocolException For other protocol rejections.
      */
     private function handleAbort(WampMessage $message): void
     {
@@ -278,25 +316,27 @@ class WampSession implements SessionContract
 
         if ($isAuthError) {
             throw new AuthenticationException(
-                "Autenticazione rifiutata dal router: {$reason}",
+                "Authentication rejected by router: {$reason}",
                 wampError: $reason,
                 details: $details,
             );
         }
 
         throw new WampProtocolException(
-            "Connessione WAMP rifiutata dal router: {$reason}",
+            "WAMP connection rejected by router: {$reason}",
             wampError: $reason,
             details: $details,
         );
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // Internal Helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of sendMessage
+     * Serialize and transmit a WampMessage across the transport layer.
+     *
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The message to transmit.
      */
     private function sendMessage(WampMessage $message): void
     {
@@ -305,7 +345,9 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of receiveMessage
+     * Receive raw transport data and deserialize it into a WampMessage.
+     *
+     * @return WampMessage The deserialized message.
      */
     private function receiveMessage(): WampMessage
     {
@@ -316,7 +358,7 @@ class WampSession implements SessionContract
     }
 
     /**
-     * Summary of closeSession
+     * Forcefully reset session state variables and close transport connections.
      */
     private function closeSession(): void
     {
@@ -326,21 +368,25 @@ class WampSession implements SessionContract
         try {
             $this->transport->close();
         } catch (Throwable) {
+            // Suppress transport closure errors
         }
     }
 
     /**
-     * Summary of assertState
+     * Assert that the session is currently in the expected state.
      *
-     * @throws SessionException
+     * @param  SessionState  $expected  The expected state.
+     * @param  string  $operation  The name of the operation being attempted.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\SessionException If state validation fails.
      */
     private function assertState(SessionState $expected, string $operation): void
     {
         if ($this->state !== $expected) {
             throw new SessionException(
-                "Impossibile eseguire '{$operation}': ".
-                    "stato attuale '{$this->state->name}', ".
-                    "stato richiesto '{$expected->name}'.",
+                "Cannot execute '{$operation}': " .
+                "current state is '{$this->state->name}', " .
+                "expected state is '{$expected->name}'.",
             );
         }
     }

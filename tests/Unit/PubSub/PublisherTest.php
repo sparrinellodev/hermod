@@ -1,12 +1,12 @@
 <?php
 
 use Amp\Future;
-use Hermod\Exceptions\PubSubException;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
-use Hermod\PubSub\Publisher;
-use Hermod\Rpc\RequestIdGenerator;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Exceptions\PubSubException;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\PubSub\Publisher;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Session\WampSession;
 
 describe('Publisher', function () {
 

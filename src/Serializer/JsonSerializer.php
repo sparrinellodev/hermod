@@ -1,36 +1,48 @@
 <?php
 
-namespace Hermod\Serializer;
+namespace Hermod\LaravelWamp\Serializer;
 
-use Hermod\Contracts\SerializerContract;
-use Hermod\Exceptions\SerializationException;
+use Hermod\LaravelWamp\Contracts\SerializerContract;
+use Hermod\LaravelWamp\Exceptions\SerializationException;
 
+/**
+ * JSON serializer implementation for WAMP protocol messages.
+ *
+ * Implements the SerializerContract interface utilizing PHP's native JSON functions 
+ * to encode and decode WAMP message arrays, enforcing strict error handling via exceptions 
+ * and declaring the standard `wamp.2.json` subprotocol identifier.
+ */
 class JsonSerializer implements SerializerContract
 {
     /**
-     * Summary of serialize
+     * Serialize a WAMP message array into a JSON-encoded string.
      *
-     * @param  array<mixed>  $message
+     * @param  array<mixed>  $message  The message array to encode.
+     * @return string The JSON-encoded string representation.
      *
-     * @throws SerializationException
+     * @throws \Hermod\LaravelWamp\Exceptions\SerializationException If encoding fails.
      */
     public function serialize(array $message): string
     {
-        $encoded = json_encode($message, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
-
-        if ($encoded === false) {
-            throw new SerializationException('Impossibile serializzare il messaggio WAMP in JSON.');
+        try {
+            $encoded = json_encode($message, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        } catch (\JsonException $e) {
+            throw new SerializationException(
+                "Failed to serialize WAMP message to JSON: {$e->getMessage()}",
+                previous: $e,
+            );
         }
 
         return $encoded;
     }
 
     /**
-     * Summary of deserialize
+     * Deserialize a JSON-encoded string into a WAMP message array.
      *
-     * @return array<mixed>
+     * @param  string  $raw  The raw JSON string received from the transport.
+     * @return array<mixed> The decoded message array.
      *
-     * @throws SerializationException
+     * @throws \Hermod\LaravelWamp\Exceptions\SerializationException If decoding fails or the result is not an array.
      */
     public function deserialize(string $raw): array
     {
@@ -38,18 +50,23 @@ class JsonSerializer implements SerializerContract
             $decoded = json_decode($raw, associative: true, flags: JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             throw new SerializationException(
-                "Impossibile deserializzare il messaggio WAMP dal JSON: {$e->getMessage()}",
+                "Failed to deserialize WAMP message from JSON: {$e->getMessage()}",
                 previous: $e,
             );
         }
 
-        if (! is_array($decoded)) {
-            throw new SerializationException('Il messaggio WAMP deserializzato non è un array valido.');
+        if (!is_array($decoded)) {
+            throw new SerializationException('The deserialized WAMP message is not a valid array.');
         }
 
         return $decoded;
     }
 
+    /**
+     * Get the WAMP subprotocol identifier for JSON.
+     *
+     * @return string The subprotocol string ('wamp.2.json').
+     */
     public function subprotocol(): string
     {
         return 'wamp.2.json';

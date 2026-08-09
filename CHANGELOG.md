@@ -5,6 +5,18 @@ All relevant changes to Hermod are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/it/1.0.0/),
 and the project adopts [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-08-07
+
+### Changed (Breaking Changes)
+
+- **Configuration File Renamed:** Renamed configuration file from `config/hermod.php` to `config/wamp.php` for better naming consistency with the Laravel package ecosystem.
+- **Publish Tag Updated:** The Artisan publish tag changed from `hermod-config` to `wamp-config`.
+- **PHP Namespace Alignment:** Standardized namespaces across the package to `Hermod\LaravelWamp\*`.
+
+### Added
+
+- Migration guide (`UPGRADE.md`) for upgrading from v1.x to v2.0.0.
+
 ## [1.0.0] - 2026-04-26
 
 ### Added

@@ -1,25 +1,34 @@
 <?php
 
-namespace Hermod\Laravel;
+namespace Hermod\LaravelWamp\Laravel;
 
-use Hermod\Auth\AuthenticatorFactory;
-use Hermod\Client\WampClient;
-use Hermod\Client\WampClientFactory;
-use Hermod\Laravel\Console\WampCallCommand;
-use Hermod\Laravel\Console\WampServeCommand;
-use Hermod\Serializer\SerializerFactory;
-use Hermod\Session\WampSessionFactory;
-use Hermod\Transport\RawSocketTransportFactory;
-use Hermod\Transport\TransportFactory;
-use Hermod\Transport\WebSocketTransportFactory;
+use Hermod\LaravelWamp\Auth\AuthenticatorFactory;
+use Hermod\LaravelWamp\Client\WampClient;
+use Hermod\LaravelWamp\Client\WampClientFactory;
+use Hermod\LaravelWamp\Laravel\Console\WampCallCommand;
+use Hermod\LaravelWamp\Laravel\Console\WampServeCommand;
+use Hermod\LaravelWamp\Serializer\SerializerFactory;
+use Hermod\LaravelWamp\Session\WampSessionFactory;
+use Hermod\LaravelWamp\Transport\RawSocketTransportFactory;
+use Hermod\LaravelWamp\Transport\TransportFactory;
+use Hermod\LaravelWamp\Transport\WebSocketTransportFactory;
 use Illuminate\Support\ServiceProvider;
 
+/**
+ * Laravel Service Provider for the Laravel-Wamp package.
+ *
+ * Handles bootstrapping configuration publishing, registering dependency injection 
+ * singletons for factories, core clients, and registering Artisan console commands.
+ */
 class WampServiceProvider extends ServiceProvider
 {
     // -------------------------------------------------------------------------
     // Boot
     // -------------------------------------------------------------------------
 
+    /**
+     * Bootstrap any package services.
+     */
     public function boot(): void
     {
         $this->publishConfig();
@@ -29,11 +38,14 @@ class WampServiceProvider extends ServiceProvider
     // Register
     // -------------------------------------------------------------------------
 
+    /**
+     * Register any package bindings into the Laravel service container.
+     */
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__.'/../../config/hermod.php',
-            'hermod',
+            __DIR__ . '/../../config/wamp.php',
+            'wamp',
         );
 
         $this->registerFactories();
@@ -42,27 +54,33 @@ class WampServiceProvider extends ServiceProvider
     }
 
     // -------------------------------------------------------------------------
-    // Pubblicazione config
+    // Configuration Publishing
     // -------------------------------------------------------------------------
 
+    /**
+     * Publish configuration files when running in the console.
+     */
     private function publishConfig(): void
     {
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                __DIR__.'/../../config/hermod.php' => config_path('hermod.php'),
-            ], 'hermod-config');
+                __DIR__ . '/../../config/wamp.php' => config_path('wamp.php'),
+            ], 'wamp-config');
         }
     }
 
     // -------------------------------------------------------------------------
-    // Factories
+    // Factories Registration
     // -------------------------------------------------------------------------
 
+    /**
+     * Register factory singletons in the service container.
+     */
     private function registerFactories(): void
     {
         $this->app->singleton(SerializerFactory::class, function ($app) {
             return new SerializerFactory(
-                $app['config']->get('hermod.serializers', []),
+                $app['config']->get('wamp.serializers', []),
             );
         });
 
@@ -100,33 +118,41 @@ class WampServiceProvider extends ServiceProvider
     }
 
     // -------------------------------------------------------------------------
-    // Client
+    // Client Registration
     // -------------------------------------------------------------------------
 
+    /**
+     * Register the primary WampClient binding and alias.
+     *
+     * @throws \RuntimeException If the default connection configuration cannot be found.
+     */
     private function registerClient(): void
     {
-        // Binding principale — usa la connessione 'default'
+        // Main binding — utilizes the 'default' connection configuration
         $this->app->singleton(WampClient::class, function ($app) {
-            $connectionName = $app['config']->get('hermod.default', 'default');
-            $config = $app['config']->get("hermod.connections.{$connectionName}");
+            $connectionName = $app['config']->get('wamp.default', 'default');
+            $config = $app['config']->get("wamp.connections.{$connectionName}");
 
             if (empty($config)) {
                 throw new \RuntimeException(
-                    "Configurazione Hermod non trovata per la connessione '{$connectionName}'.",
+                    "Laravel-Wamp configuration not found for connection '{$connectionName}'.",
                 );
             }
 
             return $app->make(WampClientFactory::class)->make($config);
         });
 
-        // Alias stringa per la Facade
-        $this->app->alias(WampClient::class, 'hermod.client');
+        // String alias for Facade support
+        $this->app->alias(WampClient::class, 'wamp.client');
     }
 
     // -------------------------------------------------------------------------
-    // Comandi Artisan
+    // Artisan Commands Registration
     // -------------------------------------------------------------------------
 
+    /**
+     * Register package Artisan commands when running in console mode.
+     */
     private function registerCommands(): void
     {
         if ($this->app->runningInConsole()) {

@@ -1,8 +1,8 @@
 <?php
 
-use Hermod\Auth\AuthMethod;
-use Hermod\Auth\WampCraAuthenticator;
-use Hermod\Exceptions\AuthenticationException;
+use Hermod\LaravelWamp\Auth\AuthMethod;
+use Hermod\LaravelWamp\Auth\WampCraAuthenticator;
+use Hermod\LaravelWamp\Exceptions\AuthenticationException;
 
 describe('WampCraAuthenticator', function () {
 

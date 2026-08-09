@@ -1,17 +1,22 @@
 <?php
 
-namespace Hermod\Auth;
+namespace Hermod\LaravelWamp\Auth;
 
-use Hermod\Contracts\AuthenticatorContract;
-use Hermod\Exceptions\AuthenticationException;
+use Hermod\LaravelWamp\Contracts\AuthenticatorContract;
+use Hermod\LaravelWamp\Exceptions\AuthenticationException;
 
+/**
+ * Factory class to resolve and instantiate the appropriate WAMP authenticator.
+ */
 class AuthenticatorFactory
 {
     /**
-     * Summary of make
+     * Create an authenticator instance based on the provided configuration.
      *
-     * @param  array<string, mixed>  $config
-     * @return AnonymousAuthenticator|TicketAuthenticator|WampCraAuthenticator
+     * @param  array<string, mixed>  $config  The authentication configuration array.
+     * @return \Hermod\LaravelWamp\Contracts\AuthenticatorContract
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\AuthenticationException If the method is unsupported or missing required parameters.
      */
     public function make(array $config): AuthenticatorContract
     {
@@ -19,8 +24,8 @@ class AuthenticatorFactory
 
         if ($method === null) {
             throw new AuthenticationException(
-                "Metodo di autenticazione non supportato: '{$config['method']}'. ".
-                    'Valori accettati: anonymous, ticket, wampcra',
+                "Unsupported authentication method: '{$config['method']}'. " .
+                "Accepted values: anonymous, ticket, wampcra."
             );
         }
 
@@ -29,19 +34,19 @@ class AuthenticatorFactory
 
             AuthMethod::Ticket => new TicketAuthenticator(
                 authId: $config['authid'] ?? throw new AuthenticationException(
-                    "Ticket auth richiede 'authid' nella configurazione.",
+                    "Ticket authentication requires an 'authid' to be present in the configuration."
                 ),
                 ticket: $config['ticket'] ?? throw new AuthenticationException(
-                    "Ticket auth richiede 'ticket' nella configurazione.",
+                    "Ticket authentication requires a 'ticket' to be present in the configuration."
                 ),
             ),
 
             AuthMethod::WampCra => new WampCraAuthenticator(
                 authId: $config['authid'] ?? throw new AuthenticationException(
-                    "WAMP-CRA richiede 'authid' nella configurazione.",
+                    "WAMP-CRA authentication requires an 'authid' to be present in the configuration."
                 ),
                 secret: $config['secret'] ?? throw new AuthenticationException(
-                    "WAMP-CRA richiede 'secret' nella configurazione.",
+                    "WAMP-CRA authentication requires a 'secret' to be present in the configuration."
                 ),
             ),
         };

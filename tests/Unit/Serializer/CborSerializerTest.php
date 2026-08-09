@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Exceptions\SerializationException;
-use Hermod\Serializer\CborSerializer;
+use Hermod\LaravelWamp\Exceptions\SerializationException;
+use Hermod\LaravelWamp\Serializer\CborSerializer;
 
 describe('CborSerializer', function () {
 

@@ -1,13 +1,18 @@
 <?php
 
-namespace Hermod\Laravel\Facades;
+namespace Hermod\LaravelWamp\Laravel\Facades;
 
 use Amp\Future;
-use Hermod\Client\WampClient;
-use Hermod\PubSub\Subscription;
+use Hermod\LaravelWamp\Client\WampClient;
+use Hermod\LaravelWamp\PubSub\Subscription;
 use Illuminate\Support\Facades\Facade;
 
 /**
+ * Laravel Facade for the WAMP client service.
+ *
+ * Provides static access to underlying WampClient operations such as RPC calls, 
+ * procedure registrations, Pub/Sub publishing, and subscriptions.
+ *
  * @method static void connect()
  * @method static void disconnect()
  * @method static bool isConnected()
@@ -26,14 +31,16 @@ use Illuminate\Support\Facades\Facade;
  * @method static void tick()
  * @method static ?int getSessionId()
  * @method static string getRealm()
- * @method static string getRealm()
  *
- * @see WampClient
+ * @see \Hermod\LaravelWamp\Client\WampClient
  */
 class Wamp extends Facade
 {
+    /**
+     * Get the registered name of the component in the container.
+     */
     protected static function getFacadeAccessor(): string
     {
-        return 'hermod.client';
+        return 'wamp.client';
     }
 }

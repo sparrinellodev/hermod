@@ -10,9 +10,9 @@ body:
         Grazie per aver segnalato un bug! Compila il form con più dettagli possibili.
 
   - type: input
-    id: hermod-version
+    id: laravel-wamp-version
     attributes:
-      label: Versione Hermod
+      label: Versione Laravel-Wamp
       placeholder: "es: 0.1.0"
     validations:
       required: true

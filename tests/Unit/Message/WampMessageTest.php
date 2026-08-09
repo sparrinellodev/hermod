@@ -1,8 +1,8 @@
 <?php
 
-use Hermod\Exceptions\InvalidMessageException;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
+use Hermod\LaravelWamp\Exceptions\InvalidMessageException;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
 
 describe('WampMessage', function () {
 

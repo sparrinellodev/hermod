@@ -1,6 +1,6 @@
 <?php
 
-use Hermod\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
 
 describe('RequestIdGenerator', function () {
 

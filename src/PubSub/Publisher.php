@@ -1,30 +1,51 @@
 <?php
 
-namespace Hermod\PubSub;
+namespace Hermod\LaravelWamp\PubSub;
 
 use Amp\DeferredFuture;
 use Amp\Future;
-use Hermod\Contracts\PublisherContract;
-use Hermod\Exceptions\PubSubException;
-use Hermod\Message\MessageFactory;
-use Hermod\Message\WampMessage;
-use Hermod\Rpc\RequestIdGenerator;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Contracts\PublisherContract;
+use Hermod\LaravelWamp\Exceptions\PubSubException;
+use Hermod\LaravelWamp\Message\MessageFactory;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Session\WampSession;
 
+/**
+ * Handles publishing WAMP events to topics with optional acknowledgement support.
+ *
+ * Implements the PublisherContract interface, managing unacknowledged fire-and-forget 
+ * broadcasts as well as asynchronous acknowledged publications using AMPHP futures 
+ * and deferred futures.
+ */
 class Publisher implements PublisherContract
 {
-    /** @var array<int, DeferredFuture> requestId → Deferred per publishWithAck */
+    /** @var array<int, DeferredFuture> requestId → Deferred instance for publishWithAck */
     private array $pendingAcks = [];
 
+    /**
+     * Create a new Publisher instance.
+     *
+     * @param  \Hermod\LaravelWamp\Session\WampSession  $session  The active WAMP session handler.
+     * @param  \Hermod\LaravelWamp\Rpc\RequestIdGenerator  $idGenerator  The request ID generator service.
+     */
     public function __construct(
         private readonly WampSession $session,
         private readonly RequestIdGenerator $idGenerator,
-    ) {}
+    ) {
+    }
 
     // -------------------------------------------------------------------------
-    // PublisherContract
+    // PublisherContract Implementation
     // -------------------------------------------------------------------------
 
+    /**
+     * Broadcast an event to a topic without requesting an acknowledgement.
+     *
+     * @param  string  $topic  The URI of the topic to publish to.
+     * @param  array<mixed>  $args  Positional arguments for the event payload.
+     * @param  array<string, mixed>  $kwargs  Keyword arguments for the event payload.
+     */
     public function publish(string $topic, array $args = [], array $kwargs = []): void
     {
         $requestId = $this->idGenerator->generate();
@@ -40,6 +61,14 @@ class Publisher implements PublisherContract
         );
     }
 
+    /**
+     * Broadcast an event to a topic and return an asynchronous Future for the acknowledgement.
+     *
+     * @param  string  $topic  The URI of the topic to publish to.
+     * @param  array<mixed>  $args  Positional arguments for the event payload.
+     * @param  array<string, mixed>  $kwargs  Keyword arguments for the event payload.
+     * @return Future<int> A future resolving to the router-assigned publication ID.
+     */
     public function publishWithAck(string $topic, array $args = [], array $kwargs = []): Future
     {
         $requestId = $this->idGenerator->generate();
@@ -61,19 +90,21 @@ class Publisher implements PublisherContract
     }
 
     // -------------------------------------------------------------------------
-    // Gestione messaggi in ingresso
+    // Incoming Message Handlers
     // -------------------------------------------------------------------------
 
     /**
-     * Chiamato dal MessageDispatcher quando arriva PUBLISHED.
-     * [17, requestId, publicationId]
+     * Handle incoming PUBLISHED messages dispatched from the router.
+     * Expected format: [17, requestId, publicationId]
+     *
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The incoming PUBLISHED message.
      */
     public function onPublished(WampMessage $message): void
     {
         $requestId = (int) $message->get(1);
         $publicationId = (int) $message->get(2);
 
-        if (! isset($this->pendingAcks[$requestId])) {
+        if (!isset($this->pendingAcks[$requestId])) {
             return;
         }
 
@@ -84,15 +115,17 @@ class Publisher implements PublisherContract
     }
 
     /**
-     * Chiamato dal MessageDispatcher quando arriva ERROR su PUBLISH.
-     * [8, PUBLISH, requestId, details, error]
+     * Handle incoming ERROR messages associated with a publish request.
+     * Expected format: [8, PUBLISH, requestId, details, error]
+     *
+     * @param  \Hermod\LaravelWamp\Message\WampMessage  $message  The incoming ERROR message.
      */
     public function onError(WampMessage $message): void
     {
         $requestId = (int) $message->get(2);
         $wampError = (string) ($message->get(4) ?? 'wamp.error.unknown');
 
-        if (! isset($this->pendingAcks[$requestId])) {
+        if (!isset($this->pendingAcks[$requestId])) {
             return;
         }
 
@@ -100,7 +133,7 @@ class Publisher implements PublisherContract
         unset($this->pendingAcks[$requestId]);
 
         $deferred->error(new PubSubException(
-            "Pubblicazione fallita su '{$wampError}'",
+            "Publication failed with WAMP error '{$wampError}'",
         ));
     }
 }

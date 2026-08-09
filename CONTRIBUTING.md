@@ -1,4 +1,4 @@
-# Contributing to Hermod
+# Contributing to Laravel-WAMP
 
 First of all, thank you for contributing! 🎉
 
@@ -8,7 +8,7 @@ First of all, thank you for contributing! 🎉
 
 Open an issue using the **Bug Report** template and include:
 
-- Hermod, PHP, and Laravel versions
+- Laravel-WAMP, PHP, and Laravel versions
 - Precise steps to reproduce the problem
 - Expected vs. current behavior
 - Stack trace, if available
@@ -72,7 +72,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 ## Local Setup
 
 ```bash
-git clone https://github.com/hermod/laravel-wamp.git
+git clone https://github.com/sparrinellodev/laravel-wamp.git
 cd laravel-wamp
 composer install
 ./vendor/bin/pest
@@ -80,5 +80,5 @@ composer install
 
 ## Questions?
 
-Open a [Discussion](https://github.com/hermod/laravel-wamp/discussions)
+Open a [Discussion](https://github.com/sparrinellodev/laravel-wamp/discussions)
 on GitHub for any questions or concerns.

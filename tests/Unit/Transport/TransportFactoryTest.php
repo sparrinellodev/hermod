@@ -1,12 +1,12 @@
 <?php
 
-use Hermod\Exceptions\TransportException;
-use Hermod\Serializer\JsonSerializer;
-use Hermod\Transport\RawSocket\RawSocketTransport;
-use Hermod\Transport\RawSocketTransportFactory;
-use Hermod\Transport\TransportFactory;
-use Hermod\Transport\WebSocketTransport;
-use Hermod\Transport\WebSocketTransportFactory;
+use Hermod\LaravelWamp\Exceptions\TransportException;
+use Hermod\LaravelWamp\Serializer\JsonSerializer;
+use Hermod\LaravelWamp\Transport\RawSocket\RawSocketTransport;
+use Hermod\LaravelWamp\Transport\RawSocketTransportFactory;
+use Hermod\LaravelWamp\Transport\TransportFactory;
+use Hermod\LaravelWamp\Transport\WebSocketTransport;
+use Hermod\LaravelWamp\Transport\WebSocketTransportFactory;
 
 describe('TransportFactory', function () {
 

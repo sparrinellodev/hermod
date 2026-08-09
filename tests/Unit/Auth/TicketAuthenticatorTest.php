@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Auth\AuthMethod;
-use Hermod\Auth\TicketAuthenticator;
+use Hermod\LaravelWamp\Auth\AuthMethod;
+use Hermod\LaravelWamp\Auth\TicketAuthenticator;
 
 describe('TicketAuthenticator', function () {
 

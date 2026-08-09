@@ -1,22 +1,35 @@
 <?php
 
-namespace Hermod\Auth;
+namespace Hermod\LaravelWamp\Auth;
 
-use Hermod\Contracts\AuthenticatorContract;
-use Hermod\Exceptions\AuthenticationException;
+use Hermod\LaravelWamp\Contracts\AuthenticatorContract;
+use Hermod\LaravelWamp\Exceptions\AuthenticationException;
 
+/**
+ * Handles Challenge-Response Authentication (WAMP-CRA) for the connection.
+ *
+ * This method provides a secure way to authenticate without sending the secret
+ * over the wire. It uses HMAC-SHA256 to sign a challenge provided by the router.
+ * It also supports salted passwords using PBKDF2 key derivation.
+ */
 class WampCraAuthenticator implements AuthenticatorContract
 {
     /**
-     * Summary of __construct
+     * Create a new WAMP-CRA Authenticator instance.
+     *
+     * @param  string  $authId  The authentication ID (e.g., username).
+     * @param  string  $secret  The shared secret or password.
      */
     public function __construct(
         private readonly string $authId,
         private readonly string $secret,
-    ) {}
+    ) {
+    }
 
     /**
-     * Summary of method
+     * Get the WAMP authentication method type.
+     *
+     * @return \Hermod\LaravelWamp\Auth\AuthMethod
      */
     public function method(): AuthMethod
     {
@@ -24,7 +37,9 @@ class WampCraAuthenticator implements AuthenticatorContract
     }
 
     /**
-     * Summary of authId
+     * Get the authentication ID (authid) for the connection.
+     *
+     * @return string|null
      */
     public function authId(): ?string
     {
@@ -32,7 +47,7 @@ class WampCraAuthenticator implements AuthenticatorContract
     }
 
     /**
-     * Summary of authExtra
+     * Get extra authentication parameters to be sent during the HELLO message.
      *
      * @return array<string, mixed>
      */
@@ -42,17 +57,19 @@ class WampCraAuthenticator implements AuthenticatorContract
     }
 
     /**
-     * Summary of handleChallenge
+     * Handle the authentication challenge issued by the WAMP router.
      *
-     * @param  array<mixed>  $extra
+     * @param  string  $challenge  The challenge string provided by the router.
+     * @param  array<string, mixed>  $extra  Additional challenge details (e.g., salt, iterations).
+     * @return string|null The base64-encoded HMAC signature.
      *
-     * @throws AuthenticationException
+     * @throws \Hermod\LaravelWamp\Exceptions\AuthenticationException If the challenge is empty.
      */
     public function handleChallenge(string $challenge, array $extra = []): ?string
     {
         if (empty($challenge)) {
             throw new AuthenticationException(
-                'WAMP-CRA: challenge vuota ricevuta dal router.',
+                'WAMP-CRA: Empty challenge received from the router.'
             );
         }
 
@@ -60,7 +77,9 @@ class WampCraAuthenticator implements AuthenticatorContract
     }
 
     /**
-     * Summary of requiresChallenge
+     * Determine if this authentication method requires a challenge-response sequence.
+     *
+     * @return bool
      */
     public function requiresChallenge(): bool
     {
@@ -72,7 +91,11 @@ class WampCraAuthenticator implements AuthenticatorContract
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of sign
+     * Sign the challenge using HMAC-SHA256.
+     *
+     * @param  string  $challenge  The challenge string provided by the router.
+     * @param  string  $key        The resolved cryptographic key.
+     * @return string The base64-encoded signature.
      */
     private function sign(string $challenge, string $key): string
     {
@@ -82,9 +105,13 @@ class WampCraAuthenticator implements AuthenticatorContract
     }
 
     /**
-     * Summary of resolveKey
+     * Resolve the cryptographic key to use for signing.
      *
-     * @param  array<mixed>  $extra
+     * If the router provides a salt, the key is derived using PBKDF2.
+     * Otherwise, the plaintext secret is used directly.
+     *
+     * @param  array<string, mixed>  $extra  The extra dictionary from the challenge message.
+     * @return string The resolved key (base64-encoded if salted, plaintext otherwise).
      */
     private function resolveKey(array $extra): string
     {
@@ -92,7 +119,7 @@ class WampCraAuthenticator implements AuthenticatorContract
             return $this->secret;
         }
 
-        // WAMP-CRA salted: deriva la chiave con PBKDF2
+        // Salted WAMP-CRA: derive the key using PBKDF2
         $salt = (string) $extra['salt'];
         $iterations = (int) ($extra['iterations'] ?? 1000);
         $keyLength = (int) ($extra['keylen'] ?? 32);

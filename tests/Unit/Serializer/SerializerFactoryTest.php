@@ -1,10 +1,10 @@
 <?php
 
-use Hermod\Exceptions\SerializationException;
-use Hermod\Serializer\CborSerializer;
-use Hermod\Serializer\JsonSerializer;
-use Hermod\Serializer\MsgpackSerializer;
-use Hermod\Serializer\SerializerFactory;
+use Hermod\LaravelWamp\Exceptions\SerializationException;
+use Hermod\LaravelWamp\Serializer\CborSerializer;
+use Hermod\LaravelWamp\Serializer\JsonSerializer;
+use Hermod\LaravelWamp\Serializer\MsgpackSerializer;
+use Hermod\LaravelWamp\Serializer\SerializerFactory;
 
 describe('SerializerFactory', function () {
 

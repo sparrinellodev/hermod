@@ -1,8 +1,8 @@
 <?php
 
-use Hermod\Auth\AuthenticatorFactory;
-use Hermod\Client\WampClientFactory;
-use Hermod\Tests\TestCase;
+use Hermod\LaravelWamp\Auth\AuthenticatorFactory;
+use Hermod\LaravelWamp\Client\WampClientFactory;
+use Hermod\LaravelWamp\Tests\TestCase;
 
 uses(TestCase::class);
 
@@ -20,17 +20,17 @@ describe('WampServiceProvider — Auth', function () {
     });
 
     it('la configurazione default ha auth anonymous', function () {
-        expect(config('hermod.connections.default.auth.method'))
+        expect(config('wamp.connections.default.auth.method'))
             ->toBe('anonymous');
     });
 
     it('la configurazione default ha reconnect abilitato', function () {
-        expect(config('hermod.connections.default.reconnect.enabled'))
+        expect(config('wamp.connections.default.reconnect.enabled'))
             ->toBeTrue();
     });
 
     it('la configurazione default ha heartbeat abilitato', function () {
-        expect(config('hermod.connections.default.heartbeat.enabled'))
+        expect(config('wamp.connections.default.heartbeat.enabled'))
             ->toBeTrue();
     });
 });

@@ -1,14 +1,14 @@
 <?php
 
-namespace Hermod\Transport;
+namespace Hermod\LaravelWamp\Transport;
 
 use Amp\Websocket\Client\WebsocketConnection;
 use Amp\Websocket\Client\WebsocketConnector;
 use Amp\Websocket\Client\WebsocketHandshake;
 use Amp\Websocket\WebsocketClosedException;
-use Hermod\Contracts\SerializerContract;
-use Hermod\Contracts\TransportContract;
-use Hermod\Exceptions\TransportException;
+use Hermod\LaravelWamp\Contracts\SerializerContract;
+use Hermod\LaravelWamp\Contracts\TransportContract;
+use Hermod\LaravelWamp\Exceptions\TransportException;
 
 class WebSocketTransport implements TransportContract
 {
@@ -18,7 +18,8 @@ class WebSocketTransport implements TransportContract
         private readonly WebsocketConnector $connector,
         private readonly SerializerContract $serializer,
         private readonly string $url,
-    ) {}
+    ) {
+    }
 
     // -------------------------------------------------------------------------
     // Connessione
@@ -45,7 +46,7 @@ class WebSocketTransport implements TransportContract
 
     public function close(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             return;
         }
 
@@ -61,7 +62,7 @@ class WebSocketTransport implements TransportContract
     public function isConnected(): bool
     {
         return $this->connection !== null
-            && ! $this->connection->isClosed();
+            && !$this->connection->isClosed();
     }
 
     // -------------------------------------------------------------------------
@@ -149,7 +150,7 @@ class WebSocketTransport implements TransportContract
 
     private function ensureConnected(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             throw new TransportException(
                 'Nessuna connessione WebSocket attiva. Chiamare connect() prima di inviare messaggi.',
             );

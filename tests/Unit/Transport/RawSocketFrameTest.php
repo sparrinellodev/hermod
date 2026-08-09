@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Exceptions\TransportException;
-use Hermod\Transport\RawSocket\RawSocketFrame;
+use Hermod\LaravelWamp\Exceptions\TransportException;
+use Hermod\LaravelWamp\Transport\RawSocket\RawSocketFrame;
 
 describe('RawSocketFrame', function () {
 

@@ -1,23 +1,45 @@
 <?php
 
-namespace Hermod\Laravel\Console;
+namespace Hermod\LaravelWamp\Laravel\Console;
 
-use Hermod\Client\WampClient;
-use Hermod\Client\WampClientFactory;
-use Hermod\Exceptions\WampClientException;
-use Hermod\Laravel\Events\WampServeStarted;
+use Hermod\LaravelWamp\Client\WampClient;
+use Hermod\LaravelWamp\Client\WampClientFactory;
+use Hermod\LaravelWamp\Exceptions\WampClientException;
+use Hermod\LaravelWamp\Laravel\Events\WampServeStarted;
 use Illuminate\Console\Command;
 
+/**
+ * Artisan command to start a WAMP Callee worker listening for RPC invocations.
+ *
+ * Handles configuration resolution (with CLI overrides), connecting to the router,
+ * dispatching registration events for procedures, and managing the worker listener lifecycle.
+ */
 class WampServeCommand extends Command
 {
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
     protected $signature = 'wamp:serve
-                            {--connection=default : Nome della connessione in config/hermod.php}
-                            {--url=              : URL del router WAMP (sovrascrive la config)}
-                            {--realm=            : Realm WAMP (sovrascrive la config)}
-                            {--serializer=       : Serializzatore da usare: json|msgpack|cbor}';
+                            {--connection=default : Name of the connection in config/wamp.php}
+                            {--url=              : WAMP router URL (overrides config)}
+                            {--realm=            : WAMP realm (overrides config)}
+                            {--serializer=       : Serializer to use: json|msgpack|cbor}';
 
-    protected $description = 'Avvia un worker Callee WAMP in ascolto di invocazioni RPC';
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Start a WAMP Callee worker listening for incoming RPC invocations';
 
+    /**
+     * Execute the console command.
+     *
+     * @param  \Hermod\LaravelWamp\Client\WampClientFactory  $factory  The WAMP client factory instance.
+     * @return int Command exit code (Command::SUCCESS or Command::FAILURE).
+     */
     public function handle(WampClientFactory $factory): int
     {
         $config = $this->resolveConfig();
@@ -32,11 +54,11 @@ class WampServeCommand extends Command
         $client = $factory->make($config);
 
         try {
-            $this->info('Connessione al router WAMP...');
+            $this->info('Connecting to WAMP router...');
             $client->connect();
 
-            $this->info("Sessione stabilita. Session ID: {$client->getSessionId()}");
-            $this->info('Worker in ascolto. Premi Ctrl+C per uscire.');
+            $this->info("Session established. Session ID: {$client->getSessionId()}");
+            $this->info('Worker listening. Press Ctrl+C to exit.');
             $this->newLine();
 
             $this->registerProcedures($client);
@@ -45,27 +67,27 @@ class WampServeCommand extends Command
 
             return Command::SUCCESS;
         } catch (WampClientException $e) {
-            $this->error("Errore WAMP: {$e->getMessage()}");
+            $this->error("WAMP Error: {$e->getMessage()}");
 
             if ($e->getPrevious()) {
-                $this->line("<fg=gray>Causa: {$e->getPrevious()->getMessage()}</>");
+                $this->line("<fg=gray>Caused by: {$e->getPrevious()->getMessage()}</>");
             }
 
             return Command::FAILURE;
         } catch (\Throwable $e) {
-            $this->error("Errore inatteso: {$e->getMessage()}");
+            $this->error("Unexpected error: {$e->getMessage()}");
 
             return Command::FAILURE;
         } finally {
-            // Tentiamo sempre una chiusura pulita
-            // WampClient::disconnect() è già robusto e non lancia eccezioni
+            // Always attempt a clean shutdown.
+            // WampClient::disconnect() is robust and does not throw exceptions.
             try {
                 if ($client->isConnected()) {
                     $client->disconnect();
-                    $this->info('Disconnesso dal router WAMP.');
+                    $this->info('Disconnected from WAMP router.');
                 }
             } catch (\Throwable) {
-                // Ignoriamo — stiamo già uscendo
+                // Ignore during shutdown
             }
         }
     }
@@ -74,18 +96,22 @@ class WampServeCommand extends Command
     // Helpers
     // -------------------------------------------------------------------------
 
-    /** @return array<mixed> */
+    /**
+     * Resolve and merge configuration settings with CLI options.
+     *
+     * @return array<string, mixed> The final configuration array.
+     */
     private function resolveConfig(): array
     {
         $connectionName = $this->option('connection');
-        $config = config("hermod.connections.{$connectionName}", []);
+        $config = config("wamp.connections.{$connectionName}", []);
 
         if (empty($config)) {
-            $this->error("Connessione '{$connectionName}' non trovata in config/hermod.php");
+            $this->error("Connection '{$connectionName}' not found in config/wamp.php");
             exit(Command::FAILURE);
         }
 
-        // Le opzioni CLI sovrascrivono la config
+        // CLI options override configuration settings
         if ($url = $this->option('url')) {
             $config['url'] = $url;
         }
@@ -101,14 +127,18 @@ class WampServeCommand extends Command
         return $config;
     }
 
+    /**
+     * Register application RPC procedures via a dedicated event dispatch.
+     *
+     * @param  \Hermod\LaravelWamp\Client\WampClient  $client  The connected WAMP client instance.
+     */
     private function registerProcedures(WampClient $client): void
     {
-        // Permette all'applicazione Laravel di registrare
-        // le proprie procedure tramite un evento dedicato.
-        // Esempio in AppServiceProvider:
+        // Allows the Laravel application to register its procedures 
+        // via a dedicated event. Example in AppServiceProvider:
         //
         // Event::listen(WampServeStarted::class, function($event) {
-        //     $event->client->register('com.myapp.somma', fn($args) => $args[0] + $args[1]);
+        //     $event->client->register('com.myapp.sum', fn($args) => $args[0] + $args[1]);
         // });
 
         event(new WampServeStarted($client));

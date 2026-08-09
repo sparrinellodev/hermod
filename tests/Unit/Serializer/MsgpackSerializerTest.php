@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Exceptions\SerializationException;
-use Hermod\Serializer\MsgpackSerializer;
+use Hermod\LaravelWamp\Exceptions\SerializationException;
+use Hermod\LaravelWamp\Serializer\MsgpackSerializer;
 
 describe('MsgpackSerializer', function () {
 

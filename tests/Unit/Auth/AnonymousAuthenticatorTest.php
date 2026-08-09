@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Auth\AnonymousAuthenticator;
-use Hermod\Auth\AuthMethod;
+use Hermod\LaravelWamp\Auth\AnonymousAuthenticator;
+use Hermod\LaravelWamp\Auth\AuthMethod;
 
 describe('AnonymousAuthenticator', function () {
 

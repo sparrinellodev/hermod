@@ -29,18 +29,18 @@
     },
     "autoload": {
         "psr-4": {
-            "Hermod\\": "src/"
+            "Hermod\\LaravelWamp\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Hermod\\Tests\\": "tests/"
+            "Hermod\\LaravelWamp\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Hermod\\Laravel\\WampServiceProvider"
+                "Hermod\\LaravelWamp\\WampServiceProvider"
             ],
             "aliases": {
                 "Wamp": "Hermod\\Laravel\\Facades\\Wamp"

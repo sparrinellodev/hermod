@@ -1,59 +1,73 @@
 <?php
 
-namespace Hermod\Client;
+namespace Hermod\LaravelWamp\Client;
 
-use Hermod\Auth\AuthenticatorFactory;
-use Hermod\PubSub\PendingSubscriptionRegistry;
-use Hermod\PubSub\Publisher;
-use Hermod\PubSub\Subscriber;
-use Hermod\Reconnect\ExponentialBackoffStrategy;
-use Hermod\Reconnect\ReconnectManager;
-use Hermod\Rpc\Callee;
-use Hermod\Rpc\Caller;
-use Hermod\Rpc\MessageDispatcher;
-use Hermod\Rpc\PendingCallRegistry;
-use Hermod\Rpc\RequestIdGenerator;
-use Hermod\Serializer\SerializerFactory;
-use Hermod\Session\WampSessionFactory;
-use Hermod\Transport\TransportFactory;
+use Hermod\LaravelWamp\Auth\AuthenticatorFactory;
+use Hermod\LaravelWamp\PubSub\PendingSubscriptionRegistry;
+use Hermod\LaravelWamp\PubSub\Publisher;
+use Hermod\LaravelWamp\PubSub\Subscriber;
+use Hermod\LaravelWamp\Reconnect\ExponentialBackoffStrategy;
+use Hermod\LaravelWamp\Reconnect\ReconnectManager;
+use Hermod\LaravelWamp\Rpc\Callee;
+use Hermod\LaravelWamp\Rpc\Caller;
+use Hermod\LaravelWamp\Rpc\MessageDispatcher;
+use Hermod\LaravelWamp\Rpc\PendingCallRegistry;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Serializer\SerializerFactory;
+use Hermod\LaravelWamp\Session\WampSessionFactory;
+use Hermod\LaravelWamp\Transport\TransportFactory;
 
+/**
+ * Factory class responsible for assembling and instantiating the WampClient.
+ *
+ * This class builds the entire dependency graph required by the WAMP client,
+ * including serializers, transports, authentication, session management,
+ * RPC/PubSub layers, and reconnection strategies.
+ */
 class WampClientFactory
 {
     /**
-     * Summary of __construct
+     * Create a new WampClientFactory instance.
+     *
+     * @param SerializerFactory $serializerFactory
+     * @param TransportFactory $transportFactory
+     * @param WampSessionFactory $sessionFactory
+     * @param AuthenticatorFactory $authenticatorFactory
      */
     public function __construct(
         private readonly SerializerFactory $serializerFactory,
         private readonly TransportFactory $transportFactory,
         private readonly WampSessionFactory $sessionFactory,
         private readonly AuthenticatorFactory $authenticatorFactory,
-    ) {}
+    ) {
+    }
 
     /**
-     * Summary of make
+     * Build and configure a new WampClient instance.
      *
-     * @param  array<mixed>  $config
+     * @param  array<string, mixed>  $config  The connection configuration array (from wamp.php).
+     * @return \Hermod\LaravelWamp\Client\WampClient
      */
     public function make(array $config): WampClient
     {
-        // 1. Serializer
+        // 1. Resolve the serialization format (e.g., JSON, MsgPack, CBOR)
         $serializer = $this->serializerFactory->make(
             $config['serializer'] ?? 'json',
         );
 
-        // 2. Transport
+        // 2. Initialize the transport layer (e.g., WebSockets)
         $transport = $this->transportFactory->make(
             type: $config['transport'] ?? 'websocket',
             url: $config['url'],
             serializer: $serializer,
         );
 
-        // 3. Authenticator
+        // 3. Resolve the authentication method (Anonymous, Ticket, WAMP-CRA)
         $authenticator = $this->authenticatorFactory->make(
             $config['auth'] ?? ['method' => 'anonymous'],
         );
 
-        // 4. Session
+        // 4. Create the WAMP session manager
         $session = $this->sessionFactory->make(
             transport: $transport,
             serializer: $serializer,
@@ -61,18 +75,18 @@ class WampClientFactory
             authenticator: $authenticator,
         );
 
-        // 5. RPC Layer
+        // 5. Bootstrap the RPC (Remote Procedure Call) layer
         $idGenerator = new RequestIdGenerator;
         $registry = new PendingCallRegistry($idGenerator);
         $caller = new Caller($session, $registry);
         $callee = new Callee($session, $idGenerator);
 
-        // 6. PubSub Layer
+        // 6. Bootstrap the Pub/Sub (Publish & Subscribe) layer
         $subRegistry = new PendingSubscriptionRegistry;
         $publisher = new Publisher($session, $idGenerator);
         $subscriber = new Subscriber($session, $idGenerator, $subRegistry);
 
-        // 7. Dispatcher
+        // 7. Setup the message dispatcher to route incoming messages
         $dispatcher = new MessageDispatcher(
             session: $session,
             caller: $caller,
@@ -81,7 +95,7 @@ class WampClientFactory
             subscriber: $subscriber,
         );
 
-        // 8. Reconnect
+        // 8. Configure the automatic reconnection strategy (Exponential Backoff)
         $reconnectConfig = $config['reconnect'] ?? [];
         $strategy = new ExponentialBackoffStrategy(
             maxAttempts: (int) ($reconnectConfig['max_attempts'] ?? 5),
@@ -95,7 +109,7 @@ class WampClientFactory
             enabled: (bool) ($reconnectConfig['enabled'] ?? true),
         );
 
-        // 9. Client
+        // 9. Assemble and return the final WampClient instance
         return new WampClient(
             session: $session,
             caller: $caller,

@@ -1,37 +1,51 @@
 <?php
 
-namespace Hermod\Transport\RawSocket;
+namespace Hermod\LaravelWamp\Transport\RawSocket;
 
 use Amp\Socket\ConnectContext;
 use Amp\Socket\Socket;
-use Hermod\Contracts\SerializerContract;
-use Hermod\Contracts\TransportContract;
-use Hermod\Exceptions\TransportException;
+use Hermod\LaravelWamp\Contracts\SerializerContract;
+use Hermod\LaravelWamp\Contracts\TransportContract;
+use Hermod\LaravelWamp\Exceptions\TransportException;
 use Throwable;
 
+/**
+ * RawSocket transport layer implementation for WAMP using AMPHP sockets.
+ *
+ * Implements the TransportContract interface, handling asynchronous TCP or Unix domain socket 
+ * connections, performing RawSocket protocol handshakes, encoding frames, and managing 
+ * frame streams with built-in control-frame (ping/pong) handling.
+ */
 class RawSocketTransport implements TransportContract
 {
+    /** @var Socket|null The underlying active AMP socket instance. */
     private ?Socket $socket = null;
 
+    /** @var int Maximum negotiated message size allowed by the router. */
     private int $maxMessageSize = 0;
 
     /**
-     * Summary of __construct
+     * Create a new RawSocketTransport instance.
+     *
+     * @param  \Hermod\LaravelWamp\Contracts\SerializerContract  $serializer  The protocol serializer implementation.
+     * @param  string  $url  The socket connection URL (e.g., 'tcp://127.0.0.1:8080' or 'unix:///path/to/socket').
+     * @param  float  $connectTimeout  The connection timeout threshold in seconds.
      */
     public function __construct(
         private readonly SerializerContract $serializer,
         private readonly string $url,
         private readonly float $connectTimeout = 10.0,
-    ) {}
+    ) {
+    }
 
     // -------------------------------------------------------------------------
-    // Connessione
+    // Connection Management
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of connect
+     * Establish the socket connection and perform the WAMP RawSocket handshake sequence.
      *
-     * @throws TransportException
+     * @throws \Hermod\LaravelWamp\Exceptions\TransportException If connection or handshake fails.
      */
     public function connect(): void
     {
@@ -43,7 +57,7 @@ class RawSocketTransport implements TransportContract
             $context = (new ConnectContext)
                 ->withConnectTimeout((int) ($this->connectTimeout * 1000));
 
-            // Supporta sia TCP (tcp://host:port) che Unix (unix:///path/to/socket)
+            // Supports both TCP (tcp://host:port) and Unix domain sockets (unix:///path/to/socket)
             $this->socket = \Amp\Socket\connect($this->url, $context);
 
             $this->performHandshake();
@@ -51,45 +65,52 @@ class RawSocketTransport implements TransportContract
             throw $e;
         } catch (Throwable $e) {
             throw new TransportException(
-                "Impossibile connettersi al router WAMP via RawSocket su '{$this->url}': {$e->getMessage()}",
+                "Failed to connect to WAMP router via RawSocket on '{$this->url}': {$e->getMessage()}",
                 previous: $e,
             );
         }
     }
 
     /**
-     * Summary of close
+     * Close the active socket connection and reset internal state parameters.
      */
     public function close(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             return;
         }
 
         try {
             $this->socket?->close();
         } catch (Throwable) {
-            // ignoriamo errori in chiusura
+            // Suppress errors during closure
         } finally {
             $this->socket = null;
             $this->maxMessageSize = 0;
         }
     }
 
+    /**
+     * Determine whether an active, unclosed socket connection exists.
+     *
+     * @return bool True if connected, false otherwise.
+     */
     public function isConnected(): bool
     {
         return $this->socket !== null
-            && ! $this->socket->isClosed();
+            && !$this->socket->isClosed();
     }
 
     // -------------------------------------------------------------------------
-    // I/O
+    // Input / Output Operations
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of send
+     * Encapsulate a message payload into a RawSocket frame and write it across the socket.
      *
-     * @throws TransportException
+     * @param  string  $data  The serialized message payload string.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\TransportException If not connected or transmission fails.
      */
     public function send(string $data): void
     {
@@ -103,49 +124,51 @@ class RawSocketTransport implements TransportContract
         } catch (Throwable $e) {
             $this->socket = null;
             throw new TransportException(
-                "Errore durante l'invio del messaggio RawSocket: {$e->getMessage()}",
+                "Error sending RawSocket message: {$e->getMessage()}",
                 previous: $e,
             );
         }
     }
 
     /**
-     * Summary of receive
+     * Read and decode an incoming RawSocket frame, transparently processing control frames (ping/pong).
      *
-     * @throws TransportException
+     * @return string The payload string of the received regular WAMP message frame.
+     *
+     * @throws \Hermod\LaravelWamp\Exceptions\TransportException If not connected or reading/decoding fails.
      */
     public function receive(): string
     {
         $this->ensureConnected();
 
         try {
-            // Leggo prima i 4 byte dell'header
+            // Read the 4-byte header first
             $header = $this->readExact(4);
 
             if ($header === null) {
                 $this->socket = null;
                 throw new TransportException(
-                    'Connessione RawSocket chiusa dal router durante la ricezione.',
+                    'RawSocket connection closed by router during read.',
                 );
             }
 
             $frame = RawSocketFrame::decodeHeader($header);
 
-            // Gestione ping/pong a livello transport
+            // Handle transport-level ping/pong frames
             if ($frame['type'] === RawSocketFrame::TYPE_PING) {
                 $pingPayload = $frame['length'] > 0
                     ? $this->readExact($frame['length'])
                     : '';
 
-                // Rispondo con pong
+                // Respond automatically with a pong frame
                 $this->socket->write(RawSocketFrame::pong($pingPayload ?? ''));
 
-                // Ricorsione — leggo il prossimo frame
+                // Recurse to read the next frame in sequence
                 return $this->receive();
             }
 
             if ($frame['type'] === RawSocketFrame::TYPE_PONG) {
-                // Pong ricevuto — ignoro e leggo il prossimo frame
+                // Pong received — ignore payload and read the next frame
                 if ($frame['length'] > 0) {
                     $this->readExact($frame['length']);
                 }
@@ -162,7 +185,7 @@ class RawSocketTransport implements TransportContract
             if ($payload === null) {
                 $this->socket = null;
                 throw new TransportException(
-                    'Connessione RawSocket chiusa durante la lettura del payload.',
+                    'RawSocket connection closed while reading message payload.',
                 );
             }
 
@@ -172,33 +195,33 @@ class RawSocketTransport implements TransportContract
         } catch (Throwable $e) {
             $this->socket = null;
             throw new TransportException(
-                "Errore durante la ricezione del messaggio RawSocket: {$e->getMessage()}",
+                "Error receiving RawSocket message: {$e->getMessage()}",
                 previous: $e,
             );
         }
     }
 
     // -------------------------------------------------------------------------
-    // Helpers
+    // Internal Helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Summary of performHandshake
+     * Execute the RawSocket connection handshake sequence with the router.
      *
-     * @throws TransportException
+     * @throws \Hermod\LaravelWamp\Exceptions\TransportException If handshake negotiation fails.
      */
     private function performHandshake(): void
     {
-        // Inviamo i 4 byte di handshake
+        // Send the 4-byte client handshake frame
         $handshake = RawSocketHandshake::build($this->serializer->subprotocol());
         $this->socket->write($handshake);
 
-        // Leggiamo i 4 byte di risposta
+        // Read the 4-byte response frame from the router
         $response = $this->readExact(4);
 
         if ($response === null) {
             throw new TransportException(
-                'Il router ha chiuso la connessione durante l\'handshake RawSocket.',
+                'The router closed the connection during the RawSocket handshake.',
             );
         }
 
@@ -208,7 +231,10 @@ class RawSocketTransport implements TransportContract
     }
 
     /**
-     * Summary of readExact
+     * Read an exact number of bytes from the socket, blocking until the buffer is filled.
+     *
+     * @param  int  $length  The exact number of bytes to read.
+     * @return string|null The read string buffer, or null if connection closed prematurely.
      */
     private function readExact(int $length): ?string
     {
@@ -219,7 +245,7 @@ class RawSocketTransport implements TransportContract
             $chunk = $this->socket->read(limit: $remaining);
 
             if ($chunk === null) {
-                return null; // connessione chiusa
+                return null; // Connection closed
             }
 
             $buffer .= $chunk;
@@ -230,15 +256,15 @@ class RawSocketTransport implements TransportContract
     }
 
     /**
-     * Summary of ensureConnected
+     * Assert that a valid socket connection is currently active.
      *
-     * @throws TransportException
+     * @throws \Hermod\LaravelWamp\Exceptions\TransportException If no active connection exists.
      */
     private function ensureConnected(): void
     {
-        if (! $this->isConnected()) {
+        if (!$this->isConnected()) {
             throw new TransportException(
-                'Nessuna connessione RawSocket attiva. Chiamare connect() prima di inviare messaggi.',
+                'No active RawSocket connection. Call connect() before sending or receiving messages.',
             );
         }
     }

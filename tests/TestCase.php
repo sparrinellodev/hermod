@@ -1,11 +1,11 @@
 <?php
 
-namespace Hermod\Tests;
+namespace Hermod\LaravelWamp\Tests;
 
-use Hermod\Laravel\WampServiceProvider;
-use Hermod\Serializer\CborSerializer;
-use Hermod\Serializer\JsonSerializer;
-use Hermod\Serializer\MsgpackSerializer;
+use Hermod\LaravelWamp\Laravel\WampServiceProvider;
+use Hermod\LaravelWamp\Serializer\CborSerializer;
+use Hermod\LaravelWamp\Serializer\JsonSerializer;
+use Hermod\LaravelWamp\Serializer\MsgpackSerializer;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class TestCase extends OrchestraTestCase
@@ -19,8 +19,8 @@ abstract class TestCase extends OrchestraTestCase
 
     protected function defineEnvironment($app): void
     {
-        $app['config']->set('hermod.default', 'default');
-        $app['config']->set('hermod.connections.default', [
+        $app['config']->set('wamp.default', 'default');
+        $app['config']->set('wamp.connections.default', [
             'transport' => 'websocket',
             'url' => 'ws://localhost:8080/ws',
             'realm' => 'realm1',
@@ -40,7 +40,7 @@ abstract class TestCase extends OrchestraTestCase
                 'interval' => 30,
             ],
         ]);
-        $app['config']->set('hermod.serializers', [
+        $app['config']->set('wamp.serializers', [
             'json' => JsonSerializer::class,
             'msgpack' => MsgpackSerializer::class,
             'cbor' => CborSerializer::class,

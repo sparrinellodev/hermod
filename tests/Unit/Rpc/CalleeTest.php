@@ -1,11 +1,11 @@
 <?php
 
-use Hermod\Exceptions\CalleeException;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
-use Hermod\Rpc\Callee;
-use Hermod\Rpc\RequestIdGenerator;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Exceptions\CalleeException;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\Rpc\Callee;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Session\WampSession;
 
 describe('Callee', function () {
 

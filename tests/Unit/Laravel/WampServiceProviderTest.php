@@ -1,10 +1,10 @@
 <?php
 
-use Hermod\Client\WampClient;
-use Hermod\Client\WampClientFactory;
-use Hermod\Laravel\Facades\Wamp;
-use Hermod\Serializer\SerializerFactory;
-use Hermod\Tests\TestCase;
+use Hermod\LaravelWamp\Client\WampClient;
+use Hermod\LaravelWamp\Client\WampClientFactory;
+use Hermod\LaravelWamp\Laravel\Facades\Wamp;
+use Hermod\LaravelWamp\Serializer\SerializerFactory;
+use Hermod\LaravelWamp\Tests\TestCase;
 
 uses(TestCase::class);
 
@@ -25,8 +25,8 @@ describe('WampServiceProvider', function () {
             ->toBeInstanceOf(WampClient::class);
     });
 
-    it('registra l\'alias hermod.client', function () {
-        expect(app('hermod.client'))
+    it('registra l\'alias wamp.client', function () {
+        expect(app('wamp.client'))
             ->toBeInstanceOf(WampClient::class);
     });
 
@@ -36,13 +36,13 @@ describe('WampServiceProvider', function () {
     });
 
     it('carica la configurazione di default', function () {
-        expect(config('hermod.default'))->toBe('default')
-            ->and(config('hermod.connections.default.url'))->toBe('ws://localhost:8080/ws')
-            ->and(config('hermod.connections.default.realm'))->toBe('realm1');
+        expect(config('wamp.default'))->toBe('default')
+            ->and(config('wamp.connections.default.url'))->toBe('ws://localhost:8080/ws')
+            ->and(config('wamp.connections.default.realm'))->toBe('realm1');
     });
 
     it('registra i serializzatori nella config', function () {
-        expect(config('hermod.serializers'))
+        expect(config('wamp.serializers'))
             ->toHaveKeys(['json', 'msgpack', 'cbor']);
     });
 });

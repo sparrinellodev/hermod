@@ -1,9 +1,9 @@
 <?php
 
-use Hermod\Exceptions\RpcException;
-use Hermod\Rpc\PendingCall;
-use Hermod\Rpc\PendingCallRegistry;
-use Hermod\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Exceptions\RpcException;
+use Hermod\LaravelWamp\Rpc\PendingCall;
+use Hermod\LaravelWamp\Rpc\PendingCallRegistry;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
 
 describe('PendingCallRegistry', function () {
 

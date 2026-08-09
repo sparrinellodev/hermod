@@ -1,13 +1,13 @@
 <?php
 
-use Hermod\Auth\AnonymousAuthenticator;
-use Hermod\Auth\TicketAuthenticator;
-use Hermod\Auth\WampCraAuthenticator;
-use Hermod\Contracts\TransportContract;
-use Hermod\Exceptions\AuthenticationException;
-use Hermod\Exceptions\WampProtocolException;
-use Hermod\Serializer\JsonSerializer;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Auth\AnonymousAuthenticator;
+use Hermod\LaravelWamp\Auth\TicketAuthenticator;
+use Hermod\LaravelWamp\Auth\WampCraAuthenticator;
+use Hermod\LaravelWamp\Contracts\TransportContract;
+use Hermod\LaravelWamp\Exceptions\AuthenticationException;
+use Hermod\LaravelWamp\Exceptions\WampProtocolException;
+use Hermod\LaravelWamp\Serializer\JsonSerializer;
+use Hermod\LaravelWamp\Session\WampSession;
 
 describe('WampSession — Auth', function () {
 

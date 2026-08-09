@@ -1,7 +1,14 @@
 <?php
 
-namespace Hermod\Message;
+namespace Hermod\LaravelWamp\Message;
 
+/**
+ * Enum representing WAMP protocol message type identifiers.
+ *
+ * Each integer value corresponds to a specific message type defined by the WAMP 
+ * (Web Application Messaging Protocol) specification, categorized across session 
+ * lifecycle management, Pub/Sub, RPC roles, and authentication.
+ */
 enum MessageType: int
 {
     // Session
@@ -10,7 +17,7 @@ enum MessageType: int
     case ABORT = 3;
     case GOODBYE = 6;
 
-    // Error (trasversale a tutti i tipi)
+    // Error (cross-cutting across all roles/types)
     case ERROR = 8;
 
     // PubSub

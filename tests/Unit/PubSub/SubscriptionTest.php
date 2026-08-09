@@ -1,6 +1,6 @@
 <?php
 
-use Hermod\PubSub\Subscription;
+use Hermod\LaravelWamp\PubSub\Subscription;
 
 describe('Subscription', function () {
 

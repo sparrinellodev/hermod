@@ -1,6 +1,6 @@
 <?php
 
-use Hermod\Laravel\Events\WampEventReceived;
+use Hermod\LaravelWamp\Laravel\Events\WampEventReceived;
 
 describe('WampEventReceived', function () {
 

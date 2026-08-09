@@ -1,15 +1,15 @@
 <?php
 
-use Hermod\Exceptions\PubSubException;
-use Hermod\Laravel\Events\WampEventReceived;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
-use Hermod\PubSub\PendingSubscriptionRegistry;
-use Hermod\PubSub\Subscriber;
-use Hermod\PubSub\Subscription;
-use Hermod\Rpc\RequestIdGenerator;
-use Hermod\Session\WampSession;
-use Hermod\Tests\TestCase;
+use Hermod\LaravelWamp\Exceptions\PubSubException;
+use Hermod\LaravelWamp\Laravel\Events\WampEventReceived;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\PubSub\PendingSubscriptionRegistry;
+use Hermod\LaravelWamp\PubSub\Subscriber;
+use Hermod\LaravelWamp\PubSub\Subscription;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Session\WampSession;
+use Hermod\LaravelWamp\Tests\TestCase;
 use Illuminate\Support\Facades\Event;
 
 uses(TestCase::class);

@@ -1,6 +1,6 @@
 <?php
 
-use Hermod\Reconnect\ExponentialBackoffStrategy;
+use Hermod\LaravelWamp\Reconnect\ExponentialBackoffStrategy;
 
 describe('ExponentialBackoffStrategy', function () {
 

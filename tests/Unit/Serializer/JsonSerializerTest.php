@@ -1,7 +1,7 @@
 <?php
 
-use Hermod\Exceptions\SerializationException;
-use Hermod\Serializer\JsonSerializer;
+use Hermod\LaravelWamp\Exceptions\SerializationException;
+use Hermod\LaravelWamp\Serializer\JsonSerializer;
 
 describe('JsonSerializer', function () {
 

@@ -1,8 +1,8 @@
 <?php
 
-use Hermod\Exceptions\ReconnectException;
-use Hermod\Reconnect\ExponentialBackoffStrategy;
-use Hermod\Reconnect\ReconnectManager;
+use Hermod\LaravelWamp\Exceptions\ReconnectException;
+use Hermod\LaravelWamp\Reconnect\ExponentialBackoffStrategy;
+use Hermod\LaravelWamp\Reconnect\ReconnectManager;
 
 describe('ReconnectManager', function () {
 

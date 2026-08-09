@@ -1,5 +1,14 @@
 <?php
 
-namespace Hermod\Exceptions;
+namespace Hermod\LaravelWamp\Exceptions;
 
-class ReconnectException extends \RuntimeException {}
+/**
+ * Exception thrown when a reconnection error occurs.
+ *
+ * This includes failures during the automated retry process, when 
+ * the maximum number of reconnection attempts has been exhausted, 
+ * or when a reconnection strategy encounters an unrecoverable state.
+ */
+class ReconnectException extends \RuntimeException
+{
+}

@@ -1,10 +1,10 @@
 <?php
 
-use Hermod\Auth\AnonymousAuthenticator;
-use Hermod\Auth\AuthenticatorFactory;
-use Hermod\Auth\TicketAuthenticator;
-use Hermod\Auth\WampCraAuthenticator;
-use Hermod\Exceptions\AuthenticationException;
+use Hermod\LaravelWamp\Auth\AnonymousAuthenticator;
+use Hermod\LaravelWamp\Auth\AuthenticatorFactory;
+use Hermod\LaravelWamp\Auth\TicketAuthenticator;
+use Hermod\LaravelWamp\Auth\WampCraAuthenticator;
+use Hermod\LaravelWamp\Exceptions\AuthenticationException;
 
 describe('AuthenticatorFactory', function () {
 

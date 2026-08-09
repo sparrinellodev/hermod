@@ -1,13 +1,13 @@
 <?php
 
 use Amp\Future;
-use Hermod\Exceptions\RpcException;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
-use Hermod\Rpc\Caller;
-use Hermod\Rpc\PendingCallRegistry;
-use Hermod\Rpc\RequestIdGenerator;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Exceptions\RpcException;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\Rpc\Caller;
+use Hermod\LaravelWamp\Rpc\PendingCallRegistry;
+use Hermod\LaravelWamp\Rpc\RequestIdGenerator;
+use Hermod\LaravelWamp\Session\WampSession;
 
 describe('Caller', function () {
 

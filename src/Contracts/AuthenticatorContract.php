@@ -1,37 +1,51 @@
 <?php
 
-namespace Hermod\Contracts;
+namespace Hermod\LaravelWamp\Contracts;
 
-use Hermod\Auth\AuthMethod;
+use Hermod\LaravelWamp\Auth\AuthMethod;
 
+/**
+ * Defines the contract for WAMP authentication methods.
+ *
+ * Any custom authentication strategy (Anonymous, Ticket, WAMP-CRA, etc.)
+ * must implement this interface to be utilized by the WampClient.
+ */
 interface AuthenticatorContract
 {
     /**
-     * Restituisce il metodo di autenticazione WAMP.
+     * Get the WAMP authentication method type.
+     *
+     * @return \Hermod\LaravelWamp\Auth\AuthMethod
      */
     public function method(): AuthMethod;
 
     /**
-     * Restituisce l'authid da inviare nel messaggio HELLO.
+     * Get the authentication ID (authid) to be sent in the HELLO message.
      *
-     * @return void
+     * @return string|null
      */
     public function authId(): ?string;
 
     /**
-     * Restituisce i dettagli extra da includere nel HELLO.
+     * Get extra authentication details to be included in the HELLO message.
+     *
+     * @return array<string, mixed>
      */
     public function authExtra(): array;
 
     /**
-     * Restituisce il payload di risposta da includere in AUTHENTICATE.
+     * Compute the signature or response to be sent in the AUTHENTICATE message.
      *
-     * @return void
+     * @param  string  $challenge  The challenge string provided by the router.
+     * @param  array<string, mixed>  $extra  Additional challenge details (e.g., salt, iterations).
+     * @return string|null The computed signature, or null if not applicable.
      */
     public function handleChallenge(string $challenge, array $extra = []): ?string;
 
     /**
-     * Indica se questo metodo richiede un messaggio AUTHENTICATE
+     * Determine if this authentication method requires a challenge-response sequence.
+     *
+     * @return bool True if the method requires an AUTHENTICATE message, false otherwise.
      */
     public function requiresChallenge(): bool;
 }

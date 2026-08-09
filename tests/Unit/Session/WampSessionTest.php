@@ -1,14 +1,14 @@
 <?php
 
-use Hermod\Auth\AnonymousAuthenticator;
-use Hermod\Contracts\TransportContract;
-use Hermod\Exceptions\SessionException;
-use Hermod\Exceptions\WampProtocolException;
-use Hermod\Message\MessageType;
-use Hermod\Message\WampMessage;
-use Hermod\Serializer\JsonSerializer;
-use Hermod\Session\SessionState;
-use Hermod\Session\WampSession;
+use Hermod\LaravelWamp\Auth\AnonymousAuthenticator;
+use Hermod\LaravelWamp\Contracts\TransportContract;
+use Hermod\LaravelWamp\Exceptions\SessionException;
+use Hermod\LaravelWamp\Exceptions\WampProtocolException;
+use Hermod\LaravelWamp\Message\MessageType;
+use Hermod\LaravelWamp\Message\WampMessage;
+use Hermod\LaravelWamp\Serializer\JsonSerializer;
+use Hermod\LaravelWamp\Session\SessionState;
+use Hermod\LaravelWamp\Session\WampSession;
 
 describe('WampSession', function () {
 

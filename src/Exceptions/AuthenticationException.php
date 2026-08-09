@@ -1,15 +1,24 @@
 <?php
 
-namespace Hermod\Exceptions;
+namespace Hermod\LaravelWamp\Exceptions;
 
 use Throwable;
 
+/**
+ * Exception thrown when a WAMP authentication error occurs.
+ *
+ * This can include failures during the challenge-response sequence,
+ * unsupported authentication methods, or rejected credentials.
+ */
 class AuthenticationException extends \RuntimeException
 {
     /**
-     * Summary of __construct
+     * Create a new AuthenticationException instance.
      *
-     * @param  mixed  $previous
+     * @param  string  $message  The error message.
+     * @param  string  $wampError  The raw WAMP error URI (e.g., 'wamp.error.no_such_realm').
+     * @param  array<string, mixed>  $details  Additional error details provided by the router.
+     * @param  \Throwable|null  $previous  The previous throwable used for exception chaining.
      */
     public function __construct(
         string $message,
